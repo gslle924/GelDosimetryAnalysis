@@ -6,6 +6,7 @@ from slicer.ScriptedLoadableModule import *
 import logging
 import GelDosimetryAnalysisLogic
 import DataProbeLib
+import slicer.util
 from DICOMLib import DICOMUtils
 from slicer.util import VTKObservationMixin
 
@@ -180,7 +181,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     if widgetClass:
       self.widget = widgetClass(self.parent)
     self.parent.show()
-
+  
   #------------------------------------------------------------------------------
   # Disconnect all connections made to the slicelet to enable the garbage collector to destruct the slicelet object on quit
   def disconnect(self):
@@ -209,6 +210,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_yTranslationSpinBox.disconnect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
     self.step3_1_computeDoseFromPddButton.disconnect('clicked()', self.onComputeDoseFromPdd)
     self.step3_1_calibrationRoutineCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep3_1_CalibrationRoutineSelected)
+    self.step3_doseCalibrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep3_DoseCalibrationSelected)
     self.step3_1_showOpticalAttenuationVsDoseCurveButton.disconnect('clicked()', self.onShowOpticalAttenuationVsDoseCurve)
     self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton.disconnect('clicked()', self.onRemoveSelectedPointsFromOpticalAttenuationVsDoseCurve)
     self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton.disconnect('clicked()', self.onFitPolynomialToOpticalAttenuationVsDoseCurve)
@@ -695,6 +697,39 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_radiusMmFromCentrePixelLineEdit.toolTip = "Radius of the cylinder that is extracted around central axis to get optical attenuation values per depth"
     self.step3_1_calibrationRoutineLayout.addRow('Averaging radius (mm): ', self.step3_1_radiusMmFromCentrePixelLineEdit)
 
+    # Custom line sampling option
+    self.step3_1_calibrationRoutineLayout.addRow(' ', None)  # Empty row
+    
+    # Checkbox to enable custom line sampling
+    self.step3_1_useCustomLineSampling = qt.QCheckBox()
+    self.step3_1_useCustomLineSampling.setChecked(False)
+    self.step3_1_useCustomLineSampling.setToolTip('Enable to sample calibration data along a custom ruler line instead of central cylinder')
+    self.step3_1_calibrationRoutineLayout.addRow('Use custom line sampling: ', self.step3_1_useCustomLineSampling)
+    
+    # Ruler selector for calibration sampling
+    self.step3_1_calibrationRulerSelector = slicer.qMRMLNodeComboBox()
+    self.step3_1_calibrationRulerSelector.nodeTypes = ["vtkMRMLMarkupsLineNode"]
+    self.step3_1_calibrationRulerSelector.selectNodeUponCreation = True
+    self.step3_1_calibrationRulerSelector.addEnabled = True
+    self.step3_1_calibrationRulerSelector.removeEnabled = True
+    self.step3_1_calibrationRulerSelector.noneEnabled = True
+    self.step3_1_calibrationRulerSelector.showHidden = False
+    self.step3_1_calibrationRulerSelector.setMRMLScene(slicer.mrmlScene)
+    self.step3_1_calibrationRulerSelector.setToolTip('Select ruler line for calibration sampling')
+    self.step3_1_calibrationRulerSelector.enabled = False
+    self.step3_1_calibrationRoutineLayout.addRow('  Calibration ruler: ', self.step3_1_calibrationRulerSelector)
+    
+    # Sampling radius
+    self.step3_1_lineSamplingRadiusSpinBox = qt.QDoubleSpinBox()
+    self.step3_1_lineSamplingRadiusSpinBox.decimals = 1
+    self.step3_1_lineSamplingRadiusSpinBox.minimum = 0.5
+    self.step3_1_lineSamplingRadiusSpinBox.maximum = 50.0
+    self.step3_1_lineSamplingRadiusSpinBox.value = 2.0
+    self.step3_1_lineSamplingRadiusSpinBox.suffix = ' mm'
+    self.step3_1_lineSamplingRadiusSpinBox.setToolTip('Radius around the line for averaging (perpendicular sampling)')
+    self.step3_1_lineSamplingRadiusSpinBox.enabled = False
+    self.step3_1_calibrationRoutineLayout.addRow('  Sampling radius: ', self.step3_1_lineSamplingRadiusSpinBox)
+
     # Align Pdd data and CALIBRATION data based on region of interest selected
     self.step3_1_alignCalibrationCurvesButton = qt.QPushButton("Plot reference and gel PDD data")
     self.step3_1_alignCalibrationCurvesButton.toolTip = "Align PDD data optical attenuation values with experimental optical attenuation values (coming from calibration gel volume)"
@@ -708,8 +743,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_xTranslationSpinBox.decimals = 2
     self.step3_1_xTranslationSpinBox.singleStep = 0.01
     self.step3_1_xTranslationSpinBox.value = 0
-    self.step3_1_xTranslationSpinBox.minimum = -10.0
-    self.step3_1_xTranslationSpinBox.maximumWidth = 48
+    self.step3_1_xTranslationSpinBox.minimum = -100000.0
+    self.step3_1_xTranslationSpinBox.maximumWidth = 482
     self.step3_1_yScaleLabel = qt.QLabel('  Y scale:')
     self.step3_1_yScaleSpinBox = qt.QDoubleSpinBox()
     self.step3_1_yScaleSpinBox.decimals = 3
@@ -717,14 +752,15 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_yScaleSpinBox.value = 1
     self.step3_1_yScaleSpinBox.minimum = 0
     self.step3_1_yScaleSpinBox.maximum = 100000
-    self.step3_1_yScaleSpinBox.maximumWidth = 60
+    self.step3_1_yScaleSpinBox.maximumWidth = 482
     self.step3_1_yTranslationLabel = qt.QLabel('  Y shift:')
     self.step3_1_yTranslationSpinBox = qt.QDoubleSpinBox()
     self.step3_1_yTranslationSpinBox.decimals = 2
     self.step3_1_yTranslationSpinBox.singleStep = 0.1
     self.step3_1_yTranslationSpinBox.value = 0
-    self.step3_1_yTranslationSpinBox.minimum = -99.9
-    self.step3_1_yTranslationSpinBox.maximumWidth = 48
+    self.step3_1_yTranslationSpinBox.minimum = -100000
+    self.step3_1_yTranslationSpinBox.maximum = 100000
+    self.step3_1_yTranslationSpinBox.maximumWidth = 482
     self.step3_1_adjustAlignmentControlsLayout.addWidget(self.step3_1_adjustAlignmentLabel)
     self.step3_1_adjustAlignmentControlsLayout.addWidget(self.step3_1_xTranslationLabel)
     self.step3_1_adjustAlignmentControlsLayout.addWidget(self.step3_1_xTranslationSpinBox)
@@ -860,8 +896,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_xTranslationSpinBox.connect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
     self.step3_1_yScaleSpinBox.connect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
     self.step3_1_yTranslationSpinBox.connect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
+    self.step3_1_useCustomLineSampling.connect('toggled(bool)', self.onToggleCustomLineSampling)
+    self.step3_1_lineSamplingRadiusSpinBox.connect('valueChanged(double)', self.onLineSamplingRadiusChanged)
     self.step3_1_computeDoseFromPddButton.connect('clicked()', self.onComputeDoseFromPdd)
     self.step3_1_calibrationRoutineCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3_1_CalibrationRoutineSelected)
+    self.step3_doseCalibrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3_DoseCalibrationSelected)
     self.step3_1_showOpticalAttenuationVsDoseCurveButton.connect('clicked()', self.onShowOpticalAttenuationVsDoseCurve)
     self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton.connect('clicked()', self.onRemoveSelectedPointsFromOpticalAttenuationVsDoseCurve)
     self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton.connect('clicked()', self.onFitPolynomialToOpticalAttenuationVsDoseCurve)
@@ -1054,8 +1093,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.stepT1_inputRulerSelector = slicer.qMRMLNodeComboBox()
     self.stepT1_inputRulerSelector.nodeTypes = ["vtkMRMLMarkupsLineNode", "vtkMRMLAnnotationRulerNode"]
     self.stepT1_inputRulerSelector.selectNodeUponCreation = True
-    self.stepT1_inputRulerSelector.addEnabled = False
-    self.stepT1_inputRulerSelector.removeEnabled = False
+    self.stepT1_inputRulerSelector.addEnabled = True
+    self.stepT1_inputRulerSelector.removeEnabled = True
     self.stepT1_inputRulerSelector.noneEnabled = False
     self.stepT1_inputRulerSelector.showHidden = False
     self.stepT1_inputRulerSelector.showChildNodeTypes = False
@@ -1101,6 +1140,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.stepT1_createLineProfileButton.connect('clicked(bool)', self.onCreateLineProfileButton)
     self.stepT1_inputRulerSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelectLineProfileParameters)
     self.stepT1_exportLineProfilesToCSV.connect('clicked()', self.onExportLineProfiles)
+
+  def onExportLineProfiles(self):
+    if hasattr(self, "lineProfileData") and self.lineProfileData is not None:
+      self.logic.exportLineProfileToCSV(self.lineProfileData)
+    else:
+      slicer.util.delayDisplay("No line profile available to export.")
+
 
   #
   # -----------------------
@@ -1373,34 +1419,36 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     cbctToPlanTransformNode = self.logic.registerPlanCtToCbctAutomatic(planCtVolumeID, cbctVolumeID)
 
     # Apply transform to plan CT and plan dose
-    self.planCtVolumeNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
-    if planCtVolumeID != planDoseVolumeID:
-      self.planDoseVolumeNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+    if cbctToPlanTransformNode is not None:
+      logging.info("Transform successfully returned")
+      qt.QMessageBox.information(None, "Success", "PlanCT to CBCT registration completed successfully.")
+
+      # Apply transform to plan structures
+      if self.planStructuresNode:
+        self.planStructuresNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+
+      # Show the two volumes for visual evaluation of the registration
+      appLogic = slicer.app.applicationLogic()
+      selectionNode = appLogic.GetSelectionNode()
+      selectionNode.SetActiveVolumeID(planCtVolumeID)
+      selectionNode.SetSecondaryVolumeID(cbctVolumeID)
+      appLogic.PropagateVolumeSelection()
+
+      # Setup visualization for easy review of registration result
+      self.step2_SetupVisualization()
+
+      # Set transforms to slider widgets
+      self.step2_1_translationSliders.setMRMLTransformNode(cbctToPlanTransformNode)
+      self.step2_1_rotationSliders.setMRMLTransformNode(cbctToPlanTransformNode)
+
+      # Change single step size to 0.5mm in the translation controls
+      sliders = slicer.util.findChildren(widget=self.step2_1_translationSliders, className='qMRMLLinearTransformSlider')
+      for slider in sliders:
+        slider.singleStep = 0.5
+
     else:
-      logging.warning('The selected nodes are the same for plan CT and plan dose')
-
-    # Apply transform to plan structures
-    if self.planStructuresNode:
-      self.planStructuresNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
-
-    # Show the two volumes for visual evaluation of the registration
-    appLogic = slicer.app.applicationLogic()
-    selectionNode = appLogic.GetSelectionNode()
-    selectionNode.SetActiveVolumeID(planCtVolumeID)
-    selectionNode.SetSecondaryVolumeID(cbctVolumeID)
-    appLogic.PropagateVolumeSelection()
-
-    # Setup visualization for easy review of registration result
-    self.step2_SetupVisualization()
-
-    # Set transforms to slider widgets
-    self.step2_1_translationSliders.setMRMLTransformNode(cbctToPlanTransformNode)
-    self.step2_1_rotationSliders.setMRMLTransformNode(cbctToPlanTransformNode)
-
-    # Change single step size to 0.5mm in the translation controls
-    sliders = slicer.util.findChildren(widget=self.step2_1_translationSliders, className='qMRMLLinearTransformSlider')
-    for slider in sliders:
-      slider.singleStep = 0.5
+      logging.error("Registration failed — no transform returned")
+      qt.QMessageBox.warning(None, "Registration Failed", "PlanCT to CBCT registration did not complete successfully.")
 
     return cbctToPlanTransformNode
 
@@ -1409,7 +1457,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     cbctToPlanTransformNode, errorRms = self.logic.registerPlanCtToCbctLandmark(self.planCtMarkupsFiducialNode.GetID(), self.cbctMarkupsFiducialNode_WithPlan.GetID())
 
     # Show registration error on GUI
-    self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
+    if errorRms:
+      self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText(f"{float(errorRms):.6f} mm")
+    else:
+      self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText("Registration failed")
+      return
+
+    # self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
 
     # Apply transform to plan CT and plan dose
     self.planCtVolumeNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
@@ -1432,11 +1486,18 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     return cbctToPlanTransformNode
 
   #------------------------------------------------------------------------------
+
   def onMeasuredToCbctRegistration(self):
     errorRms = self.logic.registerMeasuredToCbct(self.measuredMarkupsFiducialNode.GetID(), self.cbctMarkupsFiducialNode_WithMeasured.GetID())
 
     # Show registration error on GUI
-    self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
+    if errorRms:
+      self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText(f"{float(errorRms):.6f} mm")
+    else:
+      self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText("Registration failed")
+      return
+
+    #self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
 
     # Apply transform to MEASURED volume
     cbctToMeasuredTransformNode = slicer.util.getNode(self.logic.cbctToMeasuredTransformName)
@@ -1448,8 +1509,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     selectionNode.SetActiveVolumeID(self.cbctVolumeNode.GetID())
     selectionNode.SetSecondaryVolumeID(self.measuredVolumeNode.GetID())
     appLogic.PropagateVolumeSelection()
+    
+    qt.QMessageBox.information(None, "Done", "Register MEASURED to CBCT using fiducial registration finished.")
 
     return cbctToMeasuredTransformNode
+  
 
   #------------------------------------------------------------------------------
   # Step 3
@@ -1460,36 +1524,80 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     if fileName is not None and fileName != '':
       success = self.logic.loadPdd(fileName)
       if success == True:
-        self.logic.delayDisplay('PDD loaded successfully')
+        qt.QMessageBox.information(None, "Success", "PDD loaded successfully.")
       else:
-        slicer.util.errorDisplay('PDD loading failed!')
+        qt.QMessageBox.critical(None, "Error", "PDD loading failed!")
+
+  #------------------------------------------------------------------------------
+  def onStep3_DoseCalibrationSelected(self, collapsed):
+    if collapsed == False:
+        self.onStep3_1_CalibrationRoutineSelected(False)
 
   #------------------------------------------------------------------------------
   def onStep3_1_CalibrationRoutineSelected(self, collapsed):
     if collapsed == False:
-      appLogic = slicer.app.applicationLogic()
-      selectionNode = appLogic.GetSelectionNode()
-      if self.measuredVolumeNode is not None:
-        selectionNode.SetActiveVolumeID(self.measuredVolumeNode.GetID())
-      else:
-        selectionNode.SetActiveVolumeID(None)
-      selectionNode.SetSecondaryVolumeID(None)
-      appLogic.PropagateVolumeSelection()
+        self.calibrationVolumeNode = self.calibrationVolumeSelector.currentNode()
+        
+        appLogic = slicer.app.applicationLogic()
+        selectionNode = appLogic.GetSelectionNode()
+        if self.calibrationVolumeNode is not None:
+            selectionNode.SetActiveVolumeID(self.calibrationVolumeNode.GetID())
+        else:
+            selectionNode.SetActiveVolumeID(None)
+        selectionNode.SetSecondaryVolumeID(None)
+        appLogic.PropagateVolumeSelection()
 
-  #------------------------------------------------------------------------------
+  #------------------------------------------------------------------------------  
   def parseCalibrationVolume(self):
-    radiusOfCentreCircleText = self.step3_1_radiusMmFromCentrePixelLineEdit.text
-    radiusOfCentreCircleFloat = 0
-    if radiusOfCentreCircleText.isnumeric():
-      radiusOfCentreCircleFloat = float(radiusOfCentreCircleText)
+    # Check if using custom line sampling
+    if self.step3_1_useCustomLineSampling.isChecked():
+        # Validate inputs
+        if not self.step3_1_calibrationRulerSelector.currentNode():
+            slicer.util.errorDisplay('Please select a ruler for custom line sampling')
+            return False
+        
+        if not self.calibrationVolumeNode:
+            slicer.util.errorDisplay('No calibration volume selected!')
+            return False
+        
+        # Use custom line sampling
+        rulerNode = self.step3_1_calibrationRulerSelector.currentNode()
+        samplingRadius = self.step3_1_lineSamplingRadiusSpinBox.value
+        
+        logging.info(f'Sampling calibration data along ruler: {rulerNode.GetName()} with radius: {samplingRadius}mm')
+        
+        success = self.logic.sampleCalibrationAlongLine(
+            self.calibrationVolumeNode,
+            rulerNode,
+            samplingRadius
+        )
+        
+        if not success:
+            slicer.util.errorDisplay('Failed to sample calibration data along line')
+            return False
+        
+        logging.info(f'Calibration data sampled: {self.logic.calibrationDataArray.shape[0]} points')
+        return True
+    
     else:
-      slicer.util.errorDisplay('Invalid averaging radius!')
-      return False
+        # Use original central cylinder method
+        radiusOfCentreCircleText = self.step3_1_radiusMmFromCentrePixelLineEdit.text
+        radiusOfCentreCircleFloat = 0
+        if radiusOfCentreCircleText.isnumeric():
+            radiusOfCentreCircleFloat = float(radiusOfCentreCircleText)
+        else:
+            slicer.util.errorDisplay('Invalid averaging radius!')
+            return False
 
-    success = self.logic.getMeanOpticalAttenuationOfCentralCylinder(self.calibrationVolumeNode.GetID(), radiusOfCentreCircleFloat)
-    if success == False:
-      slicer.util.errorDisplay('Calibration volume parsing failed!')
-    return success
+        if not self.calibrationVolumeNode:
+            slicer.util.errorDisplay('No calibration volume selected!')
+            return False
+
+        success = self.logic.getMeanOpticalAttenuationOfCentralCylinder(
+            self.calibrationVolumeNode.GetID(), radiusOfCentreCircleFloat)
+        if not success:
+            slicer.util.errorDisplay('Calibration volume parsing failed!')
+        return success
 
   #------------------------------------------------------------------------------
   def createCalibrationCurvesWindow(self):
@@ -1498,6 +1606,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.calibrationCurveChartView.GetRenderer().SetBackground(1,1,1)
     self.calibrationCurveChart = vtk.vtkChartXY()
     self.calibrationCurveChartView.GetScene().AddItem(self.calibrationCurveChart)
+    self.calibrationCurveChartView.GetRenderWindow().SetSize(800, 550)
 
   #------------------------------------------------------------------------------
   def showCalibrationCurves(self):
@@ -1576,7 +1685,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.calibrationCurveChart.SetTitle('PDD vs Calibration data')
     self.calibrationCurveChartView.GetInteractor().Initialize()
     self.calibrationCurveChartRenderWindow = self.calibrationCurveChartView.GetRenderWindow()
-    self.calibrationCurveChartRenderWindow.SetSize(800,550)
     self.calibrationCurveChartRenderWindow.SetWindowName('PDD vs Calibration data chart')
     self.calibrationCurveChartRenderWindow.Start()
 
@@ -1618,6 +1726,110 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.showCalibrationCurves()
 
   #------------------------------------------------------------------------------
+  def onToggleCustomLineSampling(self, enabled):
+    self.step3_1_calibrationRulerSelector.enabled = enabled
+    self.step3_1_lineSamplingRadiusSpinBox.enabled = enabled
+    # Disable/enable the standard radius field
+    self.step3_1_radiusMmFromCentrePixelLineEdit.enabled = not enabled
+    
+    # Automatically switch to ruler placement mode when enabled
+    if enabled:
+      appLogic = slicer.app.applicationLogic()
+      selectionNode = appLogic.GetSelectionNode()
+      interactionNode = appLogic.GetInteractionNode()
+      
+      # Switch to place ruler mode
+      interactionNode.SwitchToSinglePlaceMode()
+      selectionNode.SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsLineNode")
+      
+      # Connect to ruler selector to observe changes
+      self.step3_1_calibrationRulerSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCalibrationRulerChanged)
+    else:
+      # Disconnect observer when disabled
+      try:
+        self.step3_1_calibrationRulerSelector.disconnect("currentNodeChanged(vtkMRMLNode*)", self.onCalibrationRulerChanged)
+      except:
+        pass
+      # Remove observer from current ruler if it exists
+      if hasattr(self, 'calibrationRulerObserverTag') and self.calibrationRulerObserverTag is not None:
+        rulerNode = self.step3_1_calibrationRulerSelector.currentNode()
+        if rulerNode:
+          rulerNode.RemoveObserver(self.calibrationRulerObserverTag)
+        self.calibrationRulerObserverTag = None
+  
+  #------------------------------------------------------------------------------
+  def onCalibrationRulerChanged(self, rulerNode):
+    # Remove observer from previous ruler
+    if hasattr(self, 'calibrationRulerObserverTag') and self.calibrationRulerObserverTag is not None:
+      if hasattr(self, 'previousCalibrationRuler') and self.previousCalibrationRuler:
+        self.previousCalibrationRuler.RemoveObserver(self.calibrationRulerObserverTag)
+      self.calibrationRulerObserverTag = None
+    
+    # Add observer to new ruler
+    if rulerNode:
+      # Observe when the ruler is modified (moved)
+      self.calibrationRulerObserverTag = rulerNode.AddObserver(
+        slicer.vtkMRMLMarkupsNode.PointModifiedEvent, 
+        self.onCalibrationRulerMoved
+      )
+      self.previousCalibrationRuler = rulerNode
+      
+      # Update the plot immediately with the new ruler
+      if self.logic.pddDataArray is not None and self.logic.pddDataArray.size > 0:
+        self.updateCalibrationWithCustomLine()
+
+  #------------------------------------------------------------------------------
+  def onCalibrationRulerMoved(self, caller, event):
+    # Only update if we have PDD data already loaded
+    if self.logic.pddDataArray is not None and self.logic.pddDataArray.size > 0:
+      self.updateCalibrationWithCustomLine()
+
+  #------------------------------------------------------------------------------
+  def updateCalibrationWithCustomLine(self):
+    # Update the calibration curve using the current ruler position
+    if not self.step3_1_useCustomLineSampling.isChecked():
+      return
+    
+    rulerNode = self.step3_1_calibrationRulerSelector.currentNode()
+    if not rulerNode or not self.calibrationVolumeNode:
+      return
+    
+    if rulerNode.GetNumberOfControlPoints() < 2:
+      return
+    
+    # Sample along the line
+    samplingRadius = self.step3_1_lineSamplingRadiusSpinBox.value
+    success = self.logic.sampleCalibrationAlongLine(
+      self.calibrationVolumeNode,
+      rulerNode,
+      samplingRadius
+    )
+    
+    if success:
+      # Re-align and show curves
+      result = self.logic.alignPddToCalibration()
+      
+      # Update manual controls
+      self.step3_1_xTranslationSpinBox.blockSignals(True)
+      self.step3_1_xTranslationSpinBox.setValue(result[1])
+      self.step3_1_xTranslationSpinBox.blockSignals(False)
+      self.step3_1_yScaleSpinBox.blockSignals(True)
+      self.step3_1_yScaleSpinBox.setValue(result[2])
+      self.step3_1_yScaleSpinBox.blockSignals(False)
+      self.step3_1_yTranslationSpinBox.blockSignals(True)
+      self.step3_1_yTranslationSpinBox.setValue(result[3])
+      self.step3_1_yTranslationSpinBox.blockSignals(False)
+      
+      # Update the plot
+      if hasattr(self, 'calibrationCurveChart'):
+        self.showCalibrationCurves()
+ 
+  #------------------------------------------------------------------------------
+  def onLineSamplingRadiusChanged(self, value):
+    if self.step3_1_useCustomLineSampling.isChecked():
+      self.updateCalibrationWithCustomLine()
+
+  #------------------------------------------------------------------------------
   def onComputeDoseFromPdd(self):
     try:
       monitorUnitsFloat = float(self.step3_1_monitorUnitsLineEdit.text)
@@ -1628,10 +1840,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
     # Calculate dose information: calculatedDose = (PddDose * MonitorUnits * RDF) / 10000
     if self.logic.computeDoseForMeasuredData(rdfFloat, monitorUnitsFloat) == False:
-      slicer.util.errorDisplay('Dose calculation from PDD failed!')
+      qt.QMessageBox.critical(None, "Error", 'Dose calculation from PDD failed!')
+      # slicer.util.errorDisplay('Dose calculation from PDD failed!')
       return False
 
-    self.logic.delayDisplay('Dose successfully calculated from PDD')
+    qt.QMessageBox.information(None, "Success", "Dose successfully calculated from PDD.")
     return True
 
   #------------------------------------------------------------------------------
@@ -1691,9 +1904,20 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   def onRemoveSelectedPointsFromOpticalAttenuationVsDoseCurve(self):
-    outlierSelection = self.oaVsDoseLineInnerPoint.GetSelection()
-    if outlierSelection is None:
+    #outlierSelection = self.oaVsDoseLineInnerPoint.GetSelection()
+    #if outlierSelection is None:
+    # outlierSelection = self.oaVsDoseLinePoint.GetSelection()
+    outlierSelection = None
+    if hasattr(self, 'oaVsDoseLineInnerPoint') and self.oaVsDoseLineInnerPoint:
+      outlierSelection = self.oaVsDoseLineInnerPoint.GetSelection()
+    if outlierSelection is None and hasattr(self, 'oaVsDoseLinePoint') and self.oaVsDoseLinePoint:
       outlierSelection = self.oaVsDoseLinePoint.GetSelection()
+    
+    if outlierSelection is None:
+      qt.QMessageBox.information(None, "Optical Attenuation vs Dose", 
+                             "Please right-click the points you want to remove on the OA vs. Dose chart.")
+      return
+    
     if outlierSelection is not None and outlierSelection.GetNumberOfTuples() > 0:
       # Get outlier indices in descending order
       outlierIndices = []
@@ -1708,8 +1932,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
       # De-select former points
       emptySelectionArray = vtk.vtkIdTypeArray()
-      self.oaVsDoseLinePoint.SetSelection(emptySelectionArray)
-      self.oaVsDoseLineInnerPoint.SetSelection(emptySelectionArray)
+      #self.oaVsDoseLinePoint.SetSelection(emptySelectionArray)
+      # self.oaVsDoseLineInnerPoint.SetSelection(emptySelectionArray)
+      if hasattr(self, 'oaVsDoseLinePoint') and self.oaVsDoseLinePoint:
+        self.oaVsDoseLinePoint.SetSelection(emptySelectionArray)
+      if hasattr(self, 'oaVsDoseLineInnerPoint') and self.oaVsDoseLineInnerPoint:
+        self.oaVsDoseLineInnerPoint.SetSelection(emptySelectionArray)
+
       if hasattr(self, 'polynomialLine') and self.polynomialLine is not None:
         self.polynomialLine.SetSelection(emptySelectionArray)
       # Update chart view
@@ -1850,6 +2079,16 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.step4_doseComparisonEvaluatedVolumeLabel.text = self.calibratedMeasuredVolumeNode.GetName()
 
   #------------------------------------------------------------------------------
+  def onStep4_MaskSegmentationSelectionChanged(self, node):
+    self.maskSegmentationNode = node
+  
+  def onStep4_MaskSegmentSelectionChanged(self, segmentID):
+    self.maskSegmentID = segmentID
+    if self.maskSegmentationNode and self.maskSegmentID:
+        labelmap = self.logic.getMaskBinaryLabelmap(self.maskSegmentationNode, self.maskSegmentID)
+        if labelmap:
+            logging.info(f"Mask segment {segmentID} binary labelmap ready")
+
   def onStep4_DoseComparisonSelected(self, collapsed):
     # Initialize mask segmentation selector to select plan structures
     self.step4_maskSegmentationSelector.setCurrentNode(self.planStructuresNode)
@@ -1864,35 +2103,35 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.layoutWidget.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
 
   #------------------------------------------------------------------------------
-  def onStep4_MaskSegmentationSelectionChanged(self, node):
+  #def onStep4_MaskSegmentationSelectionChanged(self, node):
     # Hide previously selected mask segmentation
-    if self.maskSegmentationNode is not None:
-      self.maskSegmentationNode.GetDisplayNode().SetVisibility(0)
+    #if self.maskSegmentationNode is not None:
+     # self.maskSegmentationNode.GetDisplayNode().SetVisibility(0)
     # Set new mask segmentation
-    self.maskSegmentationNode = node
-    self.onStep4_MaskSegmentSelectionChanged(self.step4_maskSegmentationSelector.currentSegmentID())
+    #self.maskSegmentationNode = node
+    #self.onStep4_MaskSegmentSelectionChanged(self.step4_maskSegmentationSelector.currentSegmentID())
     # Show new mask segmentation
-    if self.maskSegmentationNode is not None:
-      self.maskSegmentationNode.GetDisplayNode().SetVisibility(1)
+    #if self.maskSegmentationNode is not None:
+      #self.maskSegmentationNode.GetDisplayNode().SetVisibility(1)
 
   #------------------------------------------------------------------------------
-  def onStep4_MaskSegmentSelectionChanged(self, segmentID):
-    if self.maskSegmentationNode is None:
-      return
+  #def onStep4_MaskSegmentSelectionChanged(self, segmentID):
+    #if self.maskSegmentationNode is None:
+     # return
     # Set new mask segment
-    self.maskSegmentID = segmentID
+    #self.maskSegmentID = segmentID
 
     # Hide all other segments
-    import vtkSegmentationCorePython as vtkSegmentationCore
-    segmentIDs = vtk.vtkStringArray()
-    self.maskSegmentationNode.GetSegmentation().GetSegmentIDs(segmentIDs)
-    for segmentIndex in range(0,segmentIDs.GetNumberOfValues()):
-      currentSegmentID = segmentIDs.GetValue(segmentIndex)
-      self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(currentSegmentID, False)
+    #import vtkSegmentationCorePython as vtkSegmentationCore
+    #segmentIDs = vtk.vtkStringArray()
+    #self.maskSegmentationNode.GetSegmentation().GetSegmentIDs(segmentIDs)
+    #for segmentIndex in range(0,segmentIDs.GetNumberOfValues()):
+    #  currentSegmentID = segmentIDs.GetValue(segmentIndex)
+     # self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(currentSegmentID, False)
     # Show only selected segment, make it semi-transparent
-    if self.maskSegmentID is not None and self.maskSegmentID != '':
-      self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(self.maskSegmentID, True)
-      self.maskSegmentationNode.GetDisplayNode().SetSegmentOpacity3D(self.maskSegmentID, 0.5)
+    #if self.maskSegmentID is not None and self.maskSegmentID != '':
+     # self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(self.maskSegmentID, True)
+      #self.maskSegmentationNode.GetDisplayNode().SetSegmentOpacity3D(self.maskSegmentID, 0.5)
 
   #------------------------------------------------------------------------------
   def onUseMaximumDoseRadioButtonToggled(self, toggled):
@@ -1941,6 +2180,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
       # Perform gamma comparison
       qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      # Ensure both dose volumes are in the same physical grid
+      #for v in [self.planDoseVolumeNode, self.calibratedMeasuredVolumeNode]:
+        #if v and v.GetParentTransformNode():
+          #slicer.vtkSlicerTransformLogic().hardenTransform(v)
+
       errorMessage = doseComparisonLogic.ComputeGammaDoseDifference(self.gammaParameterSetNode)
 
       self.gammaProgressDialog.hide()
@@ -1959,7 +2203,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       # Show gamma volume
       appLogic = slicer.app.applicationLogic()
       selectionNode = appLogic.GetSelectionNode()
-      selectionNode.SetActiveVolumeID(self.step4_1_gammaVolumeSelector.currentNodeID)
+      selectionNode.SetActiveVolumeID(self.gammaVolumeNode.GetID())
       selectionNode.SetSecondaryVolumeID(None)
       appLogic.PropagateVolumeSelection()
 
@@ -1979,8 +2223,36 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       sliceLogicRed.EndSliceNodeInteraction()
 
       # Set gamma window/level
+      #maximumGamma = self.step4_1_maximumGammaSpinBox.value
+      #gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
+      #gammaDisplayNode.AutoWindowLevelOff()
+      #gammaDisplayNode.SetWindowLevel(maximumGamma/2, maximumGamma/2)
+     # gammaDisplayNode.ApplyThresholdOn()
+      #gammaDisplayNode.AutoThresholdOff()
+     # gammaDisplayNode.SetLowerThreshold(0.001)
+
+      # Set gamma window/level
+      #gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
+     # if gammaDisplayNode is None:
+    #    self.gammaVolumeNode.CreateDefaultDisplayNodes()
+        #gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
+        
+      # Let Slicer automatically adjust window/level so values are visible
+      #gammaDisplayNode.AutoWindowLevelOn()
+      
+      # Do NOT apply a threshold — show all voxels, even near zero
+      #gammaDisplayNode.ApplyThresholdOff()
+      # Optional: explicitly set to 0 if needed
+      #gammaDisplayNode.SetLowerThreshold(0.0)
+
+      # Set gamma window/level (match legacy behavior)
       maximumGamma = self.step4_1_maximumGammaSpinBox.value
+
       gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
+      if gammaDisplayNode is None:
+        self.gammaVolumeNode.CreateDefaultDisplayNodes()
+        gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
+
       gammaDisplayNode.AutoWindowLevelOff()
       gammaDisplayNode.SetWindowLevel(maximumGamma/2, maximumGamma/2)
       gammaDisplayNode.ApplyThresholdOn()
@@ -2076,6 +2348,45 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.lineProfileLogic.outputPlotSeriesNodes[self.gammaVolumeNode.GetID()] = self.gammaPlotSeriesNode
 
     self.lineProfileLogic.update()
+    if getattr(self, 'planDosePlotSeriesNode', None):
+        self.planDosePlotSeriesNode.SetName("Planned Dose")
+    if getattr(self, 'calibratedMeasuredPlotSeriesNode', None):
+        self.calibratedMeasuredPlotSeriesNode.SetName("Calibrated Measured Dose")
+    if getattr(self, 'gammaPlotSeriesNode', None):
+        self.gammaPlotSeriesNode.SetName("Gamma Volume")
+    
+    pcn = self.lineProfileLogic.plotChartNode
+    if pcn:
+      if hasattr(pcn, "SetShowLegend"):
+        pcn.SetShowLegend(True)
+      elif hasattr(pcn, "SetLegendVisibility"):
+        pcn.SetLegendVisibility(True)
+
+    # Build exportable [Distance(mm), Value] rows from the table
+    table = self.lineProfileTableNode.GetTable()
+    distanceCol = table.GetColumnByName("Distance") or next(
+      (table.GetColumn(ci) for ci in range(table.GetNumberOfColumns())
+       if "distance" in (table.GetColumnName(ci) or "").lower()),
+       None)
+
+    if not table or table.GetNumberOfRows() == 0:
+      self.lineProfileData = None
+      return
+    
+    # Pick the first intensity column (one per input volume):
+    intensityColName = None
+    for ci in range(table.GetNumberOfColumns()):
+      name = table.GetColumnName(ci)
+      if name.startswith("Intensity"):
+        intensityColName = name
+        break
+
+    if intensityColName is not None and distanceCol is not None:
+      intensityCol = table.GetColumnByName(intensityColName)
+      n = table.GetNumberOfRows()
+      self.lineProfileData = [[distanceCol.GetValue(i), intensityCol.GetValue(i)] for i in range(n)]
+    else:
+      self.lineProfileData = None
 
   #------------------------------------------------------------------------------
   def onLegendVisibilityToggled(self, on):
@@ -2092,36 +2403,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.stepT1_createLineProfileButton.enabled = self.planDoseVolumeNode and self.measuredVolumeNode and self.stepT1_inputRulerSelector.currentNode()
 
   #------------------------------------------------------------------------------
-  def onExportLineProfiles(self):
-    import os
-
-    if not hasattr(self, 'lineProfileTableNode'):
-      message = 'Need to create line profile first'
-      logging.error(message)
-      qt.QMessageBox.critical(None, 'Line profiles values cannot be exported', message)
-      return
-
-    self.outputDir = slicer.app.temporaryPath + '/GelDosimetry'
-    if not os.access(self.outputDir, os.F_OK):
-      os.mkdir(self.outputDir)
-
-    # Assemble file name for calibration curve points file
-    from time import gmtime, strftime
-    fileName = self.outputDir + '/' + strftime("%Y%m%d_%H%M%S_", gmtime()) + 'LineProfiles.csv'
-
-    storageNode = self.lineProfileTableNode.CreateDefaultStorageNode()
-    storageNode.SetFileName(fileName)
-    success = storageNode.WriteData(self.lineProfileTableNode)
-
-    if success == 1:
-      message = 'Dose line profiles saved in file\n' + fileName + '\n\n'
-      qt.QMessageBox.information(None, 'Line profiles values exported', message)
-    else:
-      message = 'Failed to save line profile'
-      logging.error(message)
-      qt.QMessageBox.critical(None, 'Failed to save line profile', message)
-
-
 
 #
 # GelDosimetryAnalysis
@@ -2270,14 +2551,18 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
             {}, loadedNodes) as success:
           self.assertTrue(success)
 
+          # slicer.app.processEvents()
+          # qt.QMessageBox.information(None,"Done","DICOM files loaded successfully.")
+          slicer.util.delayDisplay("DICOM files loaded successfully.")
+
     except Exception as e:
       import traceback
       traceback.print_exc()
-      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
 
   #------------------------------------------------------------------------------
   def TestSection_02_FinalizeDataLoading(self):
-    self.delayDisplay("Perform registration",self.delayMs)
+    slicer.util.delayDisplay("Perform registration",self.delayMs)
 
     try:
       slicer.util.selectModule('GelDosimetryAnalysis')
@@ -2297,6 +2582,10 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
       slicer.util.loadNodeFromFile(vffFilesDir + '/LCV02_HR_calib.vff', 'VffFile', {})
       # Verify that the VFF files were loaded
       self.assertEqual( len( slicer.util.getNodes('vtkMRMLScalarVolumeNode*') ), numOfScalarVolumeNodesBeforeLoad + 2 )
+
+      slicer.util.delayDisplay("VFF files loaded successfully.")
+      # slicer.app.processEvents()
+      # qt.QMessageBox.information(None,"Done","VFF files loaded successfully.")
 
       # Assign roles
       planCtVolume = slicer.util.getNode(self.planCtVolumeName)
@@ -2328,12 +2617,12 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     except Exception as e:
       import traceback
       traceback.print_exc()
-      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
   def TestSection_03_Register(self):
-    self.delayDisplay("Register PlanCT to CBCT automatically and Measured dose to CBCT using fiducials",self.delayMs)
+    slicer.util.delayDisplay("Register PlanCT to CBCT automatically and Measured dose to CBCT using fiducials",self.delayMs)
 
     try:
       self.assertIsNotNone(self.slicelet)
@@ -2385,12 +2674,12 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     except Exception as e:
       import traceback
       traceback.print_exc()
-      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
   def TestSection_04_Calibrate(self):
-    self.delayDisplay("Perform calibration",self.delayMs)
+    slicer.util.delayDisplay("Perform calibration",self.delayMs)
 
     try:
       self.assertIsNotNone(self.slicelet)
@@ -2447,17 +2736,17 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
       self.assertEqual(doseVoxelCount, 16777216)
 
       slicer.app.processEvents()
-      self.delayDisplay('Wait for the slicelet to catch up', 300)
+      slicer.util.delayDisplay('Wait for the slicelet to catch up', 300)
 
     except Exception as e:
       import traceback
       traceback.print_exc()
-      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
   def TestSection_05_CompareDoses(self):
-    self.delayDisplay("Perform gamma dose comparison",self.delayMs)
+    slicer.util.delayDisplay("Perform gamma dose comparison",self.delayMs)
 
     try:
       self.assertIsNotNone(self.slicelet)
@@ -2500,7 +2789,7 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     except Exception as e:
       import traceback
       traceback.print_exc()
-      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------

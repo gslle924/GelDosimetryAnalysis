@@ -12,7 +12,7 @@ class LineProfileLogic():
     self.rulerObservation = None # pair of ruler object and observation ID
     self.lineResolution = 100
     self.outputPlotSeriesNodes = {} # Map from volume node IDs to plot series nodes
-    self.outputTableNode = None
+    self.outputTableNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
     self.plotChartNode = None
 
   def __del__(self):
@@ -28,7 +28,7 @@ class LineProfileLogic():
       self.rulerObservation[0].RemoveObserver(self.rulerObservation[1])
       self.rulerObservation = None
     if toggle and (self.inputRulerNode is not None):
-      self.rulerObservation = [self.inputRulerNode, self.inputRulerNode.AddObserver(vtk.vtkCommand.ModifiedEvent, self.onRulerModified)]
+      self.rulerObservation = [self.inputRulerNode, self.inputRulerNode.AddObserver(slicer.vtkMRMLMarkupsNode.PointModifiedEvent, self.onRulerModified)]
 
   def onRulerModified(self, caller=None, event=None):
     self.update()
@@ -47,8 +47,8 @@ class LineProfileLogic():
 
     rulerStartPoint_Ruler = [0,0,0]
     rulerEndPoint_Ruler = [0,0,0]
-    inputRuler.GetPosition1(rulerStartPoint_Ruler)
-    inputRuler.GetPosition2(rulerEndPoint_Ruler)
+    inputRuler.GetLineStartPosition(rulerStartPoint_Ruler)
+    inputRuler.GetLineEndPosition(rulerEndPoint_Ruler)
     rulerStartPoint_Ruler1 = [rulerStartPoint_Ruler[0], rulerStartPoint_Ruler[1], rulerStartPoint_Ruler[2], 1.0]
     rulerEndPoint_Ruler1 = [rulerEndPoint_Ruler[0], rulerEndPoint_Ruler[1], rulerEndPoint_Ruler[2], 1.0]
 
