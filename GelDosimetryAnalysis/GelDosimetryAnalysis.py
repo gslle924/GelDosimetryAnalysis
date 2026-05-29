@@ -36,7 +36,7 @@ class GelDosimetryAnalysisSliceletWidget:
 
 #
 # SliceletMainFrame
-#   Handles the event when the slicelet is hidden (its window closed)
+# Handles the event when the slicelet is hidden (its window closed)
 #
 class SliceletMainFrame(qt.QDialog):
   def setSlicelet(self, slicelet):
@@ -97,24 +97,24 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.logic = GelDosimetryAnalysisLogic.GelDosimetryAnalysisLogic()
 
     # Set up constants
-    self.cbctMarkupsFiducialNode_WithPlanName = "CBCT fiducials (CBCT to PLANCT)"
-    self.planCtMarkupsFiducialNodeName = "PLANCT fiducials"
-    self.cbctMarkupsFiducialNode_WithMeasuredName = "CBCT fiducials (CBCT to MEASURED)"
+    self.igrtMarkupsFiducialNode_WithPlanName = "IGRT fiducials (IGRT to PLANNING)"
+    self.planningMarkupsFiducialNodeName = "PLANNING fiducials"
+    self.igrtMarkupsFiducialNode_WithMeasuredName = "IGRT fiducials (IGRT to MEASURED)"
     self.measuredMarkupsFiducialNodeName = "MEASURED fiducials"
 
     # Declare member variables (selected at certain steps and then from then on for the workflow)
     self.mode = None
 
-    self.planCtVolumeNode = None
+    self.planningVolumeNode = None
     self.planDoseVolumeNode = None
     self.planStructuresNode = None
-    self.cbctVolumeNode = None
+    self.igrtVolumeNode = None
     self.measuredVolumeNode = None
     self.calibrationVolumeNode = None
 
-    self.cbctMarkupsFiducialNode_WithPlan = None
-    self.planCtMarkupsFiducialNode = None
-    self.cbctMarkupsFiducialNode_WithMeasured = None
+    self.igrtMarkupsFiducialNode_WithPlan = None
+    self.planningMarkupsFiducialNode = None
+    self.igrtMarkupsFiducialNode_WithMeasured = None
     self.measuredMarkupsFiducialNode = None
     self.calibratedMeasuredVolumeNode = None
     self.maskSegmentationNode = None
@@ -124,25 +124,26 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     # Get markups logic
     self.markupsLogic = slicer.modules.markups.logic()
 
-    # Create or get fiducial nodes (CBCT to PLANCT)
+    # Create or get fiducial nodes (IGRT to Planning)
     try:
-      self.cbctMarkupsFiducialNode_WithPlan = slicer.util.getNode(self.cbctMarkupsFiducialNode_WithPlanName)
+      self.igrtMarkupsFiducialNode_WithPlan = slicer.util.getNode(self.igrtMarkupsFiducialNode_WithPlanName)
     except:
-      cbctFiducialsNode1Id = self.markupsLogic.AddNewFiducialNode(self.cbctMarkupsFiducialNode_WithPlanName)
-      self.cbctMarkupsFiducialNode_WithPlan = slicer.mrmlScene.GetNodeByID(cbctFiducialsNode1Id)
+      igrtFiducialsNode1Id = self.markupsLogic.AddNewFiducialNode(self.igrtMarkupsFiducialNode_WithPlanName)
+      self.igrtMarkupsFiducialNode_WithPlan = slicer.mrmlScene.GetNodeByID(igrtFiducialsNode1Id)
     try:
-      self.planCtMarkupsFiducialNode = slicer.util.getNode(self.planCtMarkupsFiducialNodeName)
+      self.planningMarkupsFiducialNode = slicer.util.getNode(self.planningMarkupsFiducialNodeName)
     except:
-      measuredFiducialsNodeId = self.markupsLogic.AddNewFiducialNode(self.planCtMarkupsFiducialNodeName)
-      self.planCtMarkupsFiducialNode = slicer.mrmlScene.GetNodeByID(measuredFiducialsNodeId)
-    measuredFiducialsDisplayNode = self.planCtMarkupsFiducialNode.GetDisplayNode()
+      measuredFiducialsNodeId = self.markupsLogic.AddNewFiducialNode(self.planningMarkupsFiducialNodeName)
+      self.planningMarkupsFiducialNode = slicer.mrmlScene.GetNodeByID(measuredFiducialsNodeId)
+    measuredFiducialsDisplayNode = self.planningMarkupsFiducialNode.GetDisplayNode()
     measuredFiducialsDisplayNode.SetSelectedColor(0, 0.9, 0.9)
-    # Create or get fiducial nodes (CBCT to MEASURED)
+    
+    # Create or get fiducial nodes (IGRT to MEASURED)
     try:
-      self.cbctMarkupsFiducialNode_WithMeasured = slicer.util.getNode(self.cbctMarkupsFiducialNode_WithMeasuredName)
+      self.igrtMarkupsFiducialNode_WithMeasured = slicer.util.getNode(self.igrtMarkupsFiducialNode_WithMeasuredName)
     except:
-      cbctFiducialsNode2Id = self.markupsLogic.AddNewFiducialNode(self.cbctMarkupsFiducialNode_WithMeasuredName)
-      self.cbctMarkupsFiducialNode_WithMeasured = slicer.mrmlScene.GetNodeByID(cbctFiducialsNode2Id)
+      igrtFiducialsNode2Id = self.markupsLogic.AddNewFiducialNode(self.igrtMarkupsFiducialNode_WithMeasuredName)
+      self.igrtMarkupsFiducialNode_WithMeasured = slicer.mrmlScene.GetNodeByID(igrtFiducialsNode2Id)
     try:
       self.measuredMarkupsFiducialNode = slicer.util.getNode(self.measuredMarkupsFiducialNodeName)
     except:
@@ -192,17 +193,20 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_loadNonDicomDataButton.disconnect('clicked()', self.onLoadNonDicomData)
     self.step1_loadDataCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep1_LoadDataCollapsed)
     self.step2_registrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_RegistrationCollapsed)
-    self.step2_1_registrationTypeAutomaticRadioButton.disconnect('toggled(bool)', self.onAutomaticPlanCtToCbctRegistrationToggled)
-    self.step2_1_registerPlanCtToCbctButton.disconnect('clicked()', self.onPlanCtToCbctAutomaticRegistration)
+    self.step2_1_registrationTypeAutomaticRadioButton.disconnect('toggled(bool)', self.onAutomaticPlanningToIGRTRegistrationToggled)
+    self.step2_1_registerPlanningToIGRTButton.disconnect('clicked()', self.onPlanningToIGRTAutomaticRegistration)
     self.step2_1_translationSliders.disconnect('valuesChanged()', self.step2_1_rotationSliders.resetUnactiveSliders)
-    self.step2_1_planCtToCbctRegistrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_1_PlanCtToCbctRegistrationSelected)
-    self.step2_1_1_cbctFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_1_1_CbctFiducialCollectionSelected)
-    self.step2_1_2_planCtFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_1_2_PlanCtFiducialCollectionSelected)
-    self.step2_1_3_registerPlanCtToCbctButton.disconnect('clicked()', self.onPlanCtToCbctLandmarkRegistration)
-    self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_2_MeasuredDoseToCbctRegistrationSelected)
-    self.step2_2_1_cbctFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_2_1_CbctFiducialCollectionSelected)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_1_PlanningToIGRTRegistrationSelected)
+    self.step2_1_1_igrtFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_1_1_IGRTFiducialCollectionSelected)
+    self.step2_1_2_planningFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_1_2_PlanningFiducialCollectionSelected)
+    self.step2_1_3_registerPlanningToIGRTButton.disconnect('clicked()', self.onPlanningToIGRTLandmarkRegistration)
+    self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_2_MeasuredDoseToIGRTRegistrationSelected)
+    self.step2_2_registrationTypeAutomaticRadioButton.disconnect('toggled(bool)', self.onAutomaticMeasuredToIgrtRegistrationToggled)
+    self.step2_2_registerMeasuredToIgrtAutomaticButton.disconnect('clicked()', self.onMeasuredToIgrtAutomaticRegistration)
+    self.step2_2_translationSliders.disconnect('valuesChanged()', self.step2_2_rotationSliders.resetUnactiveSliders)
+    self.step2_2_1_igrtFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_2_1_IGRTFiducialCollectionSelected)
     self.step2_2_2_measuredFiducialSelectionCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep2_2_2_MeasuredFiducialCollectionSelected)
-    self.step2_2_3_registerMeasuredToCbctButton.disconnect('clicked()', self.onMeasuredToCbctRegistration)
+    self.step2_2_3_registerMeasuredToIgrtButton.disconnect('clicked()', self.onMeasuredToIgrtRegistration)
     self.step3_1_pddLoadDataButton.disconnect('clicked()', self.onLoadPddDataRead)
     self.step3_1_alignCalibrationCurvesButton.disconnect('clicked()', self.onAlignCalibrationCurves)
     self.step3_1_xTranslationSpinBox.disconnect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
@@ -210,10 +214,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_yTranslationSpinBox.disconnect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
     self.step3_1_computeDoseFromPddButton.disconnect('clicked()', self.onComputeDoseFromPdd)
     self.step3_1_calibrationRoutineCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep3_1_CalibrationRoutineSelected)
-    self.step3_doseCalibrationCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep3_DoseCalibrationSelected)
-    self.step3_1_showOpticalAttenuationVsDoseCurveButton.disconnect('clicked()', self.onShowOpticalAttenuationVsDoseCurve)
-    self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton.disconnect('clicked()', self.onRemoveSelectedPointsFromOpticalAttenuationVsDoseCurve)
-    self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton.disconnect('clicked()', self.onFitPolynomialToOpticalAttenuationVsDoseCurve)
+    self.step3_1_showDeltaRVsDoseCurveButton.disconnect('clicked()', self.onShowDeltaRVsDoseCurve)
+    self.step3_1_removeSelectedPointsFromDeltaRVsDoseCurveButton.disconnect('clicked()', self.onRemoveSelectedPointsFromDeltaRVsDoseCurve)
+    self.step3_1_fitPolynomialToDeltaRVsDoseCurveButton.disconnect('clicked()', self.onFitPolynomialToDeltaRVsDoseCurve)
     self.step3_2_exportCalibrationToCSV.disconnect('clicked()', self.onExportCalibration)
     self.step3_2_applyCalibrationButton.disconnect('clicked()', self.onApplyCalibration)
     self.step4_doseComparisonCollapsibleButton.disconnect('contentsCollapsed(bool)', self.onStep4_DoseComparisonSelected)
@@ -239,7 +242,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step0_layoutSelectionCollapsibleButtonLayout = qt.QFormLayout(self.step0_layoutSelectionCollapsibleButton)
     self.step0_layoutSelectionCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
     self.step0_layoutSelectionCollapsibleButtonLayout.setSpacing(4)
-
     self.step0_viewSelectorComboBox = qt.QComboBox(self.step0_layoutSelectionCollapsibleButton)
     self.step0_viewSelectorComboBox.addItem("Four-up (3D + 3x2D)")
     self.step0_viewSelectorComboBox.addItem("Conventional (3D + 3x2D)")
@@ -255,15 +257,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step0_modeSelectorLayout = qt.QGridLayout()
     self.step0_modeSelectorLabel = qt.QLabel('Select mode: ')
     self.step0_modeSelectorLayout.addWidget(self.step0_modeSelectorLabel, 0, 0, 1, 1)
-    self.step0_clinicalModeRadioButton = qt.QRadioButton('Clinical optical readout')
+    self.step0_clinicalModeRadioButton = qt.QRadioButton('Clinical MR readout')
     self.step0_clinicalModeRadioButton.setChecked(True)
     self.step0_modeSelectorLayout.addWidget(self.step0_clinicalModeRadioButton, 0, 1)
-    self.step0_preclinicalModeRadioButton = qt.QRadioButton('Preclinical MRI readout')
+    self.step0_preclinicalModeRadioButton = qt.QRadioButton('Clinical MR readout')
     self.step0_modeSelectorLayout.addWidget(self.step0_preclinicalModeRadioButton, 0, 2)
-    #TODO: Uncomment when preclinical mode works #601
-    # self.step0_layoutSelectionCollapsibleButtonLayout.addRow(self.step0_modeSelectorLayout)
     self.step0_clinicalModeRadioButton.connect('toggled(bool)', self.onClinicalModeSelect)
-    self.step0_preclinicalModeRadioButton.connect('toggled(bool)', self.onPreclinicalModeSelect)
+    self.step0_preclinicalModeRadioButton.connect('toggled(bool)', self.onClinicalModeSelect) 
 
   #------------------------------------------------------------------------------
   def setup_Step1_LoadData(self):
@@ -276,90 +276,688 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_loadDataCollapsibleButtonLayout.setSpacing(4)
 
     # Load data label
-    self.step1_LoadDataLabel = qt.QLabel("Load all DICOM data involved in the workflow.\nNote: Can return to this step later if more data needs to be loaded")
-    self.step1_LoadDataLabel.wordWrap = True
-    self.step1_loadDataCollapsibleButtonLayout.addRow(self.step1_LoadDataLabel)
+    # 1.1 Load DICOM data
+    self.step1_1_dicomCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step1_1_dicomCollapsibleButton.text = "1.1. Load DICOM data"
+    self.step1_1_dicomCollapsibleButton.collapsed = False
+    self.step1_loadDataCollapsibleButtonLayout.addRow(self.step1_1_dicomCollapsibleButton)
+    self.step1_1_dicomLayout = qt.QFormLayout(self.step1_1_dicomCollapsibleButton)
+    self.step1_1_dicomLayout.setContentsMargins(12,4,4,4)
+    self.step1_1_dicomLayout.setSpacing(0)
 
     # Load DICOM data button
     self.step1_showDicomBrowserButton = qt.QPushButton("Load DICOM data")
-    self.step1_showDicomBrowserButton.toolTip = "Load planning data (CT, dose, structures)"
+    self.step1_showDicomBrowserButton.toolTip = "Load planning data (CT or MRI, dose, structures)"
     self.step1_showDicomBrowserButton.name = "showDicomBrowserButton"
-    self.step1_loadDataCollapsibleButtonLayout.addRow(self.step1_showDicomBrowserButton)
-
-    # Load non-DICOM data button
-    self.step1_loadNonDicomDataButton = qt.QPushButton("Load non-DICOM data from file")
-    self.step1_loadNonDicomDataButton.toolTip = "Load optical CT files from VFF, NRRD, etc."
-    self.step1_loadNonDicomDataButton.name = "loadNonDicomDataButton"
-    self.step1_loadDataCollapsibleButtonLayout.addRow(self.step1_loadNonDicomDataButton)
-
-    # Add empty row
-    self.step1_loadDataCollapsibleButtonLayout.addRow(' ', None)
+    self.step1_1_dicomLayout.addRow(self.step1_showDicomBrowserButton)
 
     # Assign data label
-    self.step1_AssignDataLabel = qt.QLabel("Assign loaded data to roles.\nNote: If this selection is changed later then all the following steps need to be performed again")
+    self.step1_AssignDataLabel = qt.QLabel("Load and assign all DICOM data involved in the workflow.\nNote: If this selection is changed later then all the following steps need to be performed again")
     self.step1_AssignDataLabel.wordWrap = True
-    self.step1_loadDataCollapsibleButtonLayout.addRow(self.step1_AssignDataLabel)
-
-    # PLANCT node selector
-    self.planCtSelector = slicer.qMRMLNodeComboBox()
-    self.planCtSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    self.planCtSelector.addEnabled = False
-    self.planCtSelector.removeEnabled = False
-    self.planCtSelector.setMRMLScene( slicer.mrmlScene )
-    self.planCtSelector.setToolTip( "Pick the planning CT volume" )
-    self.step1_loadDataCollapsibleButtonLayout.addRow('Planning CT volume: ', self.planCtSelector)
+    self.step1_1_dicomLayout.addRow(self.step1_AssignDataLabel)
+    # Planning volume node selector
+    self.planningSelector = slicer.qMRMLNodeComboBox()
+    self.planningSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.planningSelector.addEnabled = False
+    self.planningSelector.removeEnabled = False
+    self.planningSelector.setMRMLScene(slicer.mrmlScene)
+    self.planningSelector.setToolTip("Pick the planning volume")
+    self.step1_1_dicomLayout.addRow('Planning volume: ', self.planningSelector)
 
     # PLANDOSE node selector
     self.planDoseSelector = slicer.qMRMLNodeComboBox()
     self.planDoseSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
     self.planDoseSelector.addEnabled = False
     self.planDoseSelector.removeEnabled = False
-    self.planDoseSelector.setMRMLScene( slicer.mrmlScene )
-    self.planDoseSelector.setToolTip( "Pick the planning dose volume." )
-    self.step1_loadDataCollapsibleButtonLayout.addRow('Plan dose volume: ', self.planDoseSelector)
+    self.planDoseSelector.setMRMLScene(slicer.mrmlScene)
+    self.planDoseSelector.setToolTip("Pick the planning dose volume.")
+    self.step1_1_dicomLayout.addRow('Plan dose volume: ', self.planDoseSelector)
 
     # PLANSTRUCTURES node selector
     self.planStructuresSelector = slicer.qMRMLNodeComboBox()
     self.planStructuresSelector.nodeTypes = ["vtkMRMLSegmentationNode"]
-    self.planStructuresSelector.noneEnabled = True
     self.planStructuresSelector.addEnabled = False
     self.planStructuresSelector.removeEnabled = False
-    self.planStructuresSelector.setMRMLScene( slicer.mrmlScene )
-    self.planStructuresSelector.setToolTip( "Pick the planning structure set." )
-    self.step1_loadDataCollapsibleButtonLayout.addRow('Structures: ', self.planStructuresSelector)
+    self.planStructuresSelector.setMRMLScene(slicer.mrmlScene)
+    self.planStructuresSelector.setToolTip("Pick the planning structure set.")
+    self.step1_1_dicomLayout.addRow('Structures: ', self.planStructuresSelector)
 
-    # CBCT node selector
-    self.cbctSelector = slicer.qMRMLNodeComboBox()
-    self.cbctSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    self.cbctSelector.addEnabled = False
-    self.cbctSelector.removeEnabled = False
-    self.cbctSelector.setMRMLScene( slicer.mrmlScene )
-    self.cbctSelector.setToolTip( "Pick the CBCT volume." )
-    self.step1_loadDataCollapsibleButtonLayout.addRow('CBCT volume: ', self.cbctSelector)
+    # IGRT volume node selector
+    self.igrtSelector = slicer.qMRMLNodeComboBox()
+    self.igrtSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.igrtSelector.addEnabled = False
+    self.igrtSelector.removeEnabled = False
+    self.igrtSelector.setMRMLScene(slicer.mrmlScene)
+    self.igrtSelector.setToolTip("Pick the IGRT volume.")
+    self.step1_1_dicomLayout.addRow('IGRT volume: ', self.igrtSelector)
 
-    # MEASURED node selector
-    self.measuredVolumeSelector = slicer.qMRMLNodeComboBox()
-    self.measuredVolumeSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    self.measuredVolumeSelector.addEnabled = False
-    self.measuredVolumeSelector.removeEnabled = False
-    self.measuredVolumeSelector.setMRMLScene( slicer.mrmlScene )
-    self.measuredVolumeSelector.setToolTip( "Pick the measured gel dosimeter volume." )
-    self.step1_loadDataCollapsibleButtonLayout.addRow('Measured gel dosimeter volume: ', self.measuredVolumeSelector)
+    # Measured volume selectors: automatically points to ΔR1 or ΔR2 map
+    # self.measuredVolumeSelector = slicer.qMRMLNodeComboBox()
+    # self.measuredVolumeSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    # self.measuredVolumeSelector.addEnabled = False
+    # self.measuredVolumeSelector.removeEnabled = False
+    # self.measuredVolumeSelector.noneEnabled = True
+    # self.measuredVolumeSelector.setMRMLScene(slicer.mrmlScene)
 
-    # CALIBRATION node selector
-    self.calibrationVolumeSelector = slicer.qMRMLNodeComboBox()
-    self.calibrationVolumeSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
-    self.calibrationVolumeSelector.noneEnabled = True
-    self.calibrationVolumeSelector.addEnabled = False
-    self.calibrationVolumeSelector.removeEnabled = False
-    self.calibrationVolumeSelector.setMRMLScene( slicer.mrmlScene )
-    self.calibrationVolumeSelector.setToolTip( "Pick the calibration gel dosimeter volume for registration.\nNote: Only needed if calibration function is not entered, but calculated based on calibration gel volume and PDD data" )
-    self.step1_loadDataCollapsibleButtonLayout.addRow('Calibration gel volume (optional): ', self.calibrationVolumeSelector)
+    # # Calibration volume selector
+    # self.calibrationVolumeSelector = slicer.qMRMLNodeComboBox()
+    # self.calibrationVolumeSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    # self.calibrationVolumeSelector.addEnabled = False
+    # self.calibrationVolumeSelector.removeEnabled = False
+    # self.calibrationVolumeSelector.noneEnabled = True
+    # self.calibrationVolumeSelector.setMRMLScene(slicer.mrmlScene)
+ 
+    # 1.2 Load non-DICOM data
+    self.step1_2_nonDicomCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step1_2_nonDicomCollapsibleButton.text = "1.2. Load non-DICOM data"
+    self.step1_2_nonDicomCollapsibleButton.collapsed = True  
+    self.step1_loadDataCollapsibleButtonLayout.addRow(self.step1_2_nonDicomCollapsibleButton)
+    self.step1_2_nonDicomLayout = qt.QFormLayout(self.step1_2_nonDicomCollapsibleButton)
+    self.step1_2_nonDicomLayout.setContentsMargins(12,4,4,4)
+    self.step1_2_nonDicomLayout.setSpacing(0) 
 
+    # 1.2.1 Load measured gel dosimeter volume
+    self.step1_2_1_measuredGelCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step1_2_1_measuredGelCollapsibleButton.text = "1.2.1. Load measured gel dosimeter volume"
+    self.step1_2_1_measuredGelCollapsibleButton.collapsed = True
+    self.step1_2_nonDicomLayout.addRow(self.step1_2_1_measuredGelCollapsibleButton)
+    self.step1_2_1_measuredGelLayout = qt.QFormLayout(self.step1_2_1_measuredGelCollapsibleButton)
+    self.step1_2_1_measuredGelLayout.setContentsMargins(12,4,4,4)
+    # self.step1_2_1_measuredGelLayout.setSpacing(4)
+
+    # Load non-DICOM data button
+    self.step1_loadNonDicomDataButton = qt.QPushButton("Load non-DICOM data")
+    self.step1_loadNonDicomDataButton.toolTip = "Load MR files from NRRD, mha, etc."
+    self.step1_loadNonDicomDataButton.name = "loadNonDicomDataButton"
+    self.step1_2_1_measuredGelLayout.addRow(self.step1_loadNonDicomDataButton)
+
+    # Pre-irradiation gel volume
+    self.step1_2_1_preScanSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_1_preScanSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_1_preScanSelector.selectNodeUponCreation = False
+    self.step1_2_1_preScanSelector.addEnabled = False
+    self.step1_2_1_preScanSelector.removeEnabled = False
+    self.step1_2_1_preScanSelector.noneEnabled = True
+    self.step1_2_1_preScanSelector.showHidden = False
+    self.step1_2_1_preScanSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_1_preScanSelector.setToolTip("Select pre-irradiation volume (if available, enables ΔR workflow)")
+    self.step1_2_1_measuredGelLayout.addRow("Pre-irradiation volume (optional):", self.step1_2_1_preScanSelector)
+
+    # Post-irradiation gel volume
+    self.step1_2_1_postScanSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_1_postScanSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_1_postScanSelector.selectNodeUponCreation = False
+    self.step1_2_1_postScanSelector.addEnabled = False
+    self.step1_2_1_postScanSelector.removeEnabled = False
+    self.step1_2_1_postScanSelector.noneEnabled = True
+    self.step1_2_1_postScanSelector.showHidden = False
+    self.step1_2_1_postScanSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_1_postScanSelector.setToolTip("Select post-irradiation volume")
+    self.step1_2_1_measuredGelLayout.addRow("Post-irradiation volume:", self.step1_2_1_postScanSelector)
+
+    # 1.2.1.1. Delta R workflow
+    self.step1_2_1_1_deltaRLayout = self.step1_2_1_measuredGelLayout
+
+    # 1.2.1.1.2. Registration
+    self.step1_2_1_1_step2_registrationButton = ctk.ctkCollapsibleButton()
+    self.step1_2_1_1_step2_registrationButton.text = "Register post- to pre-irradiation volume"
+    self.step1_2_1_1_step2_registrationButton.collapsed = True
+    self.step1_2_1_1_step2_registrationButton.enabled = False
+    self.step1_2_1_1_step2_registrationButton.visible = False
+    self.step1_2_1_1_deltaRLayout.addRow(self.step1_2_1_1_step2_registrationButton)
+    self.step1_2_1_1_step2_registrationLayout = qt.QFormLayout(self.step1_2_1_1_step2_registrationButton)
+    self.step1_2_1_1_step2_registrationLayout.setContentsMargins(12,4,4,4)
+    
+    # Perform Registration button
+    self.step1_2_1_1_registerButton = qt.QPushButton("Perform Registration")
+    self.step1_2_1_1_registerButton.toolTip = "Automatically register post- to pre-irradiation  volume (takes several seconds)"
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_registerButton)
+
+    # Adjust Registration Transform section
+    self.step1_2_1_1_adjustTransformLabel = qt.QLabel("If registration result is not satisfactory, a simple re-run of the registration may solve it.")
+    self.step1_2_1_1_adjustTransformLabel.setWordWrap(True)
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_adjustTransformLabel)
+
+    # Manual transform adjustment section
+    self.step1_2_1_1_adjustTransformLabel = qt.QLabel("Adjust transform manually if needed:")
+    self.step1_2_1_1_adjustTransformLabel.wordWrap = True
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_adjustTransformLabel)
+    
+    # Translation sliders
+    self.step1_2_1_1_translationSliders = slicer.qMRMLTransformSliders()
+    translationGroupBox = slicer.util.findChildren(widget=self.step1_2_1_1_translationSliders, className='ctkCollapsibleGroupBox')[0]
+    translationGroupBox.collapsed = True
+    self.step1_2_1_1_translationSliders.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_translationSliders)
+    
+    # Rotation sliders
+    self.step1_2_1_1_rotationSliders = slicer.qMRMLTransformSliders()
+    self.step1_2_1_1_rotationSliders.minMaxVisible = False
+    self.step1_2_1_1_rotationSliders.TypeOfTransform = slicer.qMRMLTransformSliders.ROTATION
+    self.step1_2_1_1_rotationSliders.Title = "Rotation"
+    self.step1_2_1_1_rotationSliders.CoordinateReference = slicer.qMRMLTransformSliders.LOCAL
+    rotationGroupBox = slicer.util.findChildren(widget=self.step1_2_1_1_rotationSliders, className='ctkCollapsibleGroupBox')[0]
+    rotationGroupBox.collapsed = True
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_rotationSliders)
+    
+    # Resample button
+    self.step1_2_1_1_resampleButton = qt.QPushButton("Resample")
+    self.step1_2_1_1_resampleButton.toolTip = "Resample post-irradiation volume with current manual transform adjustments"
+    self.step1_2_1_1_resampleButton.enabled = False
+    self.step1_2_1_1_resampleButton.visible = False
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_resampleButton)
+
+    # GRE checkbox
+    self.step1_2_1_1_useGRECheckBox = qt.QCheckBox("GRE images used for registration.")
+    self.step1_2_1_1_useGRECheckBox.toolTip = "If checked, apply the registration transform to R1 maps as a separate step"
+    self.step1_2_1_1_useGRECheckBox.enabled = False
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_useGRECheckBox)
+
+    # Apply transform to R1 maps
+    self.step1_2_1_1_applyToR1Button = ctk.ctkCollapsibleButton()
+    self.step1_2_1_1_applyToR1Button.text = "Apply transform to R1 map"
+    self.step1_2_1_1_applyToR1Button.collapsed = True
+    self.step1_2_1_1_applyToR1Button.visible = False
+    self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_applyToR1Button)
+    self.step1_2_1_1_applyToR1Layout = qt.QFormLayout(self.step1_2_1_1_applyToR1Button)
+    self.step1_2_1_1_applyToR1Layout.setContentsMargins(12,4,4,4)
+
+    # R1 pre selector
+    self.step1_2_1_1_r1PreSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_1_1_r1PreSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_1_1_r1PreSelector.selectNodeUponCreation = False
+    self.step1_2_1_1_r1PreSelector.addEnabled = False
+    self.step1_2_1_1_r1PreSelector.removeEnabled = False
+    self.step1_2_1_1_r1PreSelector.noneEnabled = True
+    self.step1_2_1_1_r1PreSelector.showHidden = False
+    self.step1_2_1_1_r1PreSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_1_1_r1PreSelector.setToolTip("Select pre-irradiation R1 map")
+    self.step1_2_1_1_applyToR1Layout.addRow("Pre-irradiation R1 map:", self.step1_2_1_1_r1PreSelector)
+
+    # R1 post selector
+    self.step1_2_1_1_r1PostSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_1_1_r1PostSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_1_1_r1PostSelector.selectNodeUponCreation = False
+    self.step1_2_1_1_r1PostSelector.addEnabled = False
+    self.step1_2_1_1_r1PostSelector.removeEnabled = False
+    self.step1_2_1_1_r1PostSelector.noneEnabled = True
+    self.step1_2_1_1_r1PostSelector.showHidden = False
+    self.step1_2_1_1_r1PostSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_1_1_r1PostSelector.setToolTip("Select post-irradiation R1 map")
+    self.step1_2_1_1_applyToR1Layout.addRow("Post-irradiation R1 map:", self.step1_2_1_1_r1PostSelector)
+
+    # Apply transform button
+    self.step1_2_1_1_applyTransformToR1Button = qt.QPushButton("Apply Transform to R1 Maps")
+    self.step1_2_1_1_applyTransformToR1Button.toolTip = "Resample R1 post-irradiation volume using the GRE registration transform"
+    self.step1_2_1_1_applyToR1Layout.addRow(self.step1_2_1_1_applyTransformToR1Button)
+
+    # 1.2.1.1.3. Denoising
+    self.step1_2_1_1_step3_denoisingButton = ctk.ctkCollapsibleButton()
+    self.step1_2_1_1_step3_denoisingButton.text = "Denoising (optional)"
+    self.step1_2_1_1_step3_denoisingButton.collapsed = True
+    self.step1_2_1_1_step3_denoisingButton.enabled = False
+    self.step1_2_1_1_step3_denoisingButton.visible = False
+    self.step1_2_1_1_deltaRLayout.addRow(self.step1_2_1_1_step3_denoisingButton)
+    self.step1_2_1_1_step3_denoisingLayout = qt.QFormLayout(self.step1_2_1_1_step3_denoisingButton)
+    self.step1_2_1_1_step3_denoisingLayout.setContentsMargins(12,4,4,4)
+    
+    # Input image volume
+    self.step1_2_1_1_denoisingInputSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_1_1_denoisingInputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_1_1_denoisingInputSelector.selectNodeUponCreation = False
+    self.step1_2_1_1_denoisingInputSelector.addEnabled = False
+    self.step1_2_1_1_denoisingInputSelector.removeEnabled = False
+    self.step1_2_1_1_denoisingInputSelector.noneEnabled = False
+    self.step1_2_1_1_denoisingInputSelector.showHidden = False
+    self.step1_2_1_1_denoisingInputSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_1_1_denoisingInputSelector.setToolTip("Select volume to denoise")
+    self.step1_2_1_1_step3_denoisingLayout.addRow("Input Image Volume:", self.step1_2_1_1_denoisingInputSelector)
+
+    # Filter type selector - default: Gradient Anisotropic Diffusion
+    self.step1_2_1_1_filterTypeComboBox = qt.QComboBox()
+    self.step1_2_1_1_filterTypeComboBox.addItem("Gradient Anisotropic Diffusion")
+    self.step1_2_1_1_filterTypeComboBox.addItem("Curvature Anisotropic Diffusion")
+    self.step1_2_1_1_filterTypeComboBox.addItem("Gaussian Blur Image Filter")
+    self.step1_2_1_1_filterTypeComboBox.addItem("Median Image Filter")
+    self.step1_2_1_1_filterTypeComboBox.setCurrentIndex(0)  # Default to Gradient Anisotropic Diffusion
+    self.step1_2_1_1_filterTypeComboBox.setToolTip("Select denoising filter type")
+    self.step1_2_1_1_step3_denoisingLayout.addRow("Filter type:", self.step1_2_1_1_filterTypeComboBox)
+    
+    # Parameter controls
+    # Gradient Anisotropic Diffusion parameters
+    self.step1_2_1_1_gradientIterationsSpinBox = qt.QSpinBox() # whole numbers only
+    self.step1_2_1_1_gradientIterationsSpinBox.setRange(1, 50)
+    self.step1_2_1_1_gradientIterationsSpinBox.setValue(30)
+    self.step1_2_1_1_gradientIterationsSpinBox.setToolTip("Number of iterations")
+
+    self.step1_2_1_1_gradientTimeStepSpinBox = qt.QDoubleSpinBox() # decimal numbers
+    self.step1_2_1_1_gradientTimeStepSpinBox.setRange(0.001, 0.5)
+    self.step1_2_1_1_gradientTimeStepSpinBox.setSingleStep(0.001)
+    self.step1_2_1_1_gradientTimeStepSpinBox.setValue(0.02)
+    self.step1_2_1_1_gradientTimeStepSpinBox.setToolTip("Time step")
+
+    self.step1_2_1_1_gradientConductanceSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_1_1_gradientConductanceSpinBox.setRange(0.1, 10.0)
+    self.step1_2_1_1_gradientConductanceSpinBox.setSingleStep(0.1)
+    self.step1_2_1_1_gradientConductanceSpinBox.setValue(1.0)
+    self.step1_2_1_1_gradientConductanceSpinBox.setToolTip("Conductance parameter")
+
+    # Curvature Anisotropic Diffusion parameters
+    self.step1_2_1_1_curvatureIterationsSpinBox = qt.QSpinBox()
+    self.step1_2_1_1_curvatureIterationsSpinBox.setRange(1, 50)
+    self.step1_2_1_1_curvatureIterationsSpinBox.setValue(30)
+    self.step1_2_1_1_curvatureIterationsSpinBox.setToolTip("Number of iterations")
+
+    self.step1_2_1_1_curvatureTimeStepSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_1_1_curvatureTimeStepSpinBox.setRange(0.001, 0.5)
+    self.step1_2_1_1_curvatureTimeStepSpinBox.setSingleStep(0.001)
+    self.step1_2_1_1_curvatureTimeStepSpinBox.setValue(0.02)
+    self.step1_2_1_1_curvatureTimeStepSpinBox.setToolTip("Time step")
+
+    self.step1_2_1_1_curvatureConductanceSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_1_1_curvatureConductanceSpinBox.setRange(0.1, 10.0)
+    self.step1_2_1_1_curvatureConductanceSpinBox.setSingleStep(0.1)
+    self.step1_2_1_1_curvatureConductanceSpinBox.setValue(1.0)
+    self.step1_2_1_1_curvatureConductanceSpinBox.setToolTip("Conductance parameter")
+
+    # Gaussian Blur Image Filter parameters
+    self.step1_2_1_1_gaussianSigmaSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_1_1_gaussianSigmaSpinBox.setRange(0.1, 10.0)
+    self.step1_2_1_1_gaussianSigmaSpinBox.setSingleStep(0.1)
+    self.step1_2_1_1_gaussianSigmaSpinBox.setValue(1.0)
+    self.step1_2_1_1_gaussianSigmaSpinBox.setToolTip("Sigma (standard deviation)")
+
+    # Median Image Filter parameters
+    self.step1_2_1_1_medianNeighborhoodSpinBox = qt.QSpinBox()
+    self.step1_2_1_1_medianNeighborhoodSpinBox.setRange(1, 11)
+    self.step1_2_1_1_medianNeighborhoodSpinBox.setSingleStep(2) 
+    self.step1_2_1_1_medianNeighborhoodSpinBox.setValue(3)
+    self.step1_2_1_1_medianNeighborhoodSpinBox.setToolTip("Neighborhood size (odd number)")
+
+    # Parameter layout
+    # Gradient Anisotropic Diffusion parameters
+    self.step1_2_1_1_gradientParamsWidget = qt.QWidget()
+    gradientLayout = qt.QFormLayout(self.step1_2_1_1_gradientParamsWidget)
+    gradientLayout.setContentsMargins(0,0,0,0)
+    gradientLayout.addRow("Iterations:", self.step1_2_1_1_gradientIterationsSpinBox)
+    gradientLayout.addRow("Time step:", self.step1_2_1_1_gradientTimeStepSpinBox)
+    gradientLayout.addRow("Conductance:", self.step1_2_1_1_gradientConductanceSpinBox)
+    self.step1_2_1_1_step3_denoisingLayout.addRow(self.step1_2_1_1_gradientParamsWidget)
+
+    # Curvature Anisotropic Diffusion parameter
+    self.step1_2_1_1_curvatureParamsWidget = qt.QWidget()
+    curvatureLayout = qt.QFormLayout(self.step1_2_1_1_curvatureParamsWidget)
+    curvatureLayout.setContentsMargins(0,0,0,0)
+    curvatureLayout.addRow("Iterations:", self.step1_2_1_1_curvatureIterationsSpinBox)
+    curvatureLayout.addRow("Time step:", self.step1_2_1_1_curvatureTimeStepSpinBox)
+    curvatureLayout.addRow("Conductance:", self.step1_2_1_1_curvatureConductanceSpinBox)
+    self.step1_2_1_1_step3_denoisingLayout.addRow(self.step1_2_1_1_curvatureParamsWidget)
+
+    # Gaussian Blur Image Filter parameters
+    self.step1_2_1_1_gaussianParamsWidget = qt.QWidget()
+    gaussianLayout = qt.QFormLayout(self.step1_2_1_1_gaussianParamsWidget)
+    gaussianLayout.setContentsMargins(0,0,0,0)
+    gaussianLayout.addRow("Sigma:", self.step1_2_1_1_gaussianSigmaSpinBox)
+    self.step1_2_1_1_step3_denoisingLayout.addRow(self.step1_2_1_1_gaussianParamsWidget)
+
+    # Median Image Filter parameters
+    self.step1_2_1_1_medianParamsWidget = qt.QWidget()
+    medianLayout = qt.QFormLayout(self.step1_2_1_1_medianParamsWidget)
+    medianLayout.setContentsMargins(0,0,0,0)
+    medianLayout.addRow("Kernel size:", self.step1_2_1_1_medianNeighborhoodSpinBox)
+    self.step1_2_1_1_step3_denoisingLayout.addRow(self.step1_2_1_1_medianParamsWidget)
+
+    # Apply Denoising button
+    self.step1_2_1_1_applyDenoisingButton = qt.QPushButton("Apply Denoising")
+    self.step1_2_1_1_applyDenoisingButton.toolTip = "Apply selected denoising filter to volume"
+    self.step1_2_1_1_step3_denoisingLayout.addRow(self.step1_2_1_1_applyDenoisingButton)
+    self.onFilterTypeChanged(0)
+
+    # 1.2.1.1.4. Compute Delta R
+    self.step1_2_1_1_step4_computeButton = ctk.ctkCollapsibleButton()
+    self.step1_2_1_1_step4_computeButton.text = "Compute ΔR1 or ΔR2 map"
+    self.step1_2_1_1_step4_computeButton.collapsed = True
+    self.step1_2_1_1_step4_computeButton.enabled = False
+    self.step1_2_1_1_step4_computeButton.visible = False
+    self.step1_2_1_1_deltaRLayout.addRow(self.step1_2_1_1_step4_computeButton)
+    self.step1_2_1_1_step4_computeLayout = qt.QFormLayout(self.step1_2_1_1_step4_computeButton)
+    self.step1_2_1_1_step4_computeLayout.setContentsMargins(12,4,4,4)
+
+    self.step1_2_1_1_computeDeltaRButton = qt.QPushButton("Compute ΔR1 or ΔR2 map")
+    self.step1_2_1_1_computeDeltaRButton.toolTip = "Subtract pre- from registered post-irradiation volume"
+    self.step1_2_1_1_computeDeltaRButton.enabled = False
+    self.step1_2_1_1_step4_computeLayout.addRow(self.step1_2_1_1_computeDeltaRButton)
+    self.step1_2_1_1_statusLabel = qt.QLabel("")
+    self.step1_2_1_1_statusLabel.setWordWrap(True)
+    self.step1_2_1_1_deltaRLayout.addRow(self.step1_2_1_1_statusLabel)
+    
+    # Make Steps 1-4 mutually exclusive (only one active at a time)
+    self.step1_2_1_1_stepsButtonGroup = qt.QButtonGroup()
+    self.step1_2_1_1_stepsButtonGroup.addButton(self.step1_2_1_1_step2_registrationButton)
+    self.step1_2_1_1_stepsButtonGroup.addButton(self.step1_2_1_1_step3_denoisingButton)
+    self.step1_2_1_1_stepsButtonGroup.addButton(self.step1_2_1_1_step4_computeButton)
+
+    # 1.2.2 Load calibration gel dosimeter volume - OPTIONAL
+    self.step1_2_2_calibrationGelCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step1_2_2_calibrationGelCollapsibleButton.text = "1.2.2. Load calibration gel dosimeter volume (optional)"
+    self.step1_2_2_calibrationGelCollapsibleButton.collapsed = True
+    self.step1_2_nonDicomLayout.addRow(self.step1_2_2_calibrationGelCollapsibleButton)
+    self.step1_2_2_calibrationGelLayout = qt.QFormLayout(self.step1_2_2_calibrationGelCollapsibleButton)
+    self.step1_2_2_calibrationGelLayout.setContentsMargins(12,4,4,4)
+
+    self.step1_2_2_loadNonDicomDataButton = qt.QPushButton("Load non-DICOM data")
+    self.step1_2_2_loadNonDicomDataButton.toolTip = "Load calibration gel MR files from NRRD, mha, etc."
+    self.step1_2_2_loadNonDicomDataButton.name = "loadCalibrationNonDicomDataButton"
+    self.step1_2_2_calibrationGelLayout.addRow(self.step1_2_2_loadNonDicomDataButton)
+
+    # Pre-irradiation calibration gel volume
+    self.step1_2_2_preScanSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_2_preScanSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_2_preScanSelector.selectNodeUponCreation = False
+    self.step1_2_2_preScanSelector.addEnabled = False
+    self.step1_2_2_preScanSelector.removeEnabled = False
+    self.step1_2_2_preScanSelector.noneEnabled = True
+    self.step1_2_2_preScanSelector.showHidden = False
+    self.step1_2_2_preScanSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_2_preScanSelector.setToolTip("Select pre-irradiation calibration gel volume (if available, enables ΔR workflow)")
+    self.step1_2_2_calibrationGelLayout.addRow("Pre-irradiation volume (optional):", self.step1_2_2_preScanSelector)
+
+    # Post-irradiation calibration gel volume
+    self.step1_2_2_postScanSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_2_postScanSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_2_postScanSelector.selectNodeUponCreation = False
+    self.step1_2_2_postScanSelector.addEnabled = False
+    self.step1_2_2_postScanSelector.removeEnabled = False
+    self.step1_2_2_postScanSelector.noneEnabled = True
+    self.step1_2_2_postScanSelector.showHidden = False
+    self.step1_2_2_postScanSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_2_postScanSelector.setToolTip("Select post-irradiation calibration gel volume")
+    self.step1_2_2_calibrationGelLayout.addRow("Post-irradiation volume:", self.step1_2_2_postScanSelector)
+
+    # 1.2.2.1. Delta R workflow section for calibration gel
+    self.step1_2_2_1_deltaRLayout = self.step1_2_2_calibrationGelLayout
+
+    # 1.2.2.1.2. Registration for calibration
+    self.step1_2_2_1_step2_registrationButton = ctk.ctkCollapsibleButton()
+    self.step1_2_2_1_step2_registrationButton.text = "Register post- to pre-irradiation volume"
+    self.step1_2_2_1_step2_registrationButton.collapsed = True
+    self.step1_2_2_1_step2_registrationButton.enabled = False
+    self.step1_2_2_1_step2_registrationButton.visible = False
+    self.step1_2_2_1_deltaRLayout.addRow(self.step1_2_2_1_step2_registrationButton)
+    self.step1_2_2_1_step2_registrationLayout = qt.QFormLayout(self.step1_2_2_1_step2_registrationButton)
+    self.step1_2_2_1_step2_registrationLayout.setContentsMargins(12,4,4,4)
+    
+    # Perform Registration button
+    self.step1_2_2_1_registerButton = qt.QPushButton("Perform Registration")
+    self.step1_2_2_1_registerButton.toolTip = "Automatically register post- to pre-irradiation volume (takes several seconds)"
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_registerButton)
+    
+    # Adjust Registration Transform section
+    self.step1_2_2_1_adjustTransformLabel = qt.QLabel("If registration result is not satisfactory, a simple re-run of the registration may solve it.")
+    self.step1_2_2_1_adjustTransformLabel.setWordWrap(True)
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_adjustTransformLabel)
+    
+    # Manual transform adjustment section
+    self.step1_2_2_1_adjustTransformLabel = qt.QLabel("Adjust transform manually if needed:")
+    self.step1_2_2_1_adjustTransformLabel.wordWrap = True
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_adjustTransformLabel)
+    
+    # Translation sliders
+    self.step1_2_2_1_translationSliders = slicer.qMRMLTransformSliders()
+    translationGroupBox = slicer.util.findChildren(widget=self.step1_2_2_1_translationSliders, className='ctkCollapsibleGroupBox')[0]
+    translationGroupBox.collapsed = True
+    self.step1_2_2_1_translationSliders.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_translationSliders)
+    
+    # Rotation sliders
+    self.step1_2_2_1_rotationSliders = slicer.qMRMLTransformSliders()
+    self.step1_2_2_1_rotationSliders.minMaxVisible = False
+    self.step1_2_2_1_rotationSliders.TypeOfTransform = slicer.qMRMLTransformSliders.ROTATION
+    self.step1_2_2_1_rotationSliders.Title = "Rotation"
+    self.step1_2_2_1_rotationSliders.CoordinateReference = slicer.qMRMLTransformSliders.LOCAL
+    rotationGroupBox = slicer.util.findChildren(widget=self.step1_2_2_1_rotationSliders, className='ctkCollapsibleGroupBox')[0]
+    rotationGroupBox.collapsed = True
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_rotationSliders)
+
+    # Resample button
+    self.step1_2_2_1_resampleButton = qt.QPushButton("Resample")
+    self.step1_2_2_1_resampleButton.toolTip = "Resample post-irradiation volume with current manual transform adjustments"
+    self.step1_2_2_1_resampleButton.enabled = False
+    self.step1_2_2_1_resampleButton.visible = False  
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_resampleButton)
+
+    # GRE checkbox
+    self.step1_2_2_1_useGRECheckBox = qt.QCheckBox("GRE images used for registration.")
+    self.step1_2_2_1_useGRECheckBox.toolTip = "If checked, apply the registration transform to R1 maps as a separate step"
+    self.step1_2_2_1_useGRECheckBox.enabled = False
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_useGRECheckBox)
+
+    # Apply transform to R1 maps
+    self.step1_2_2_1_applyToR1Button = ctk.ctkCollapsibleButton()
+    self.step1_2_2_1_applyToR1Button.text = "Apply transform to R1 maps"
+    self.step1_2_2_1_applyToR1Button.collapsed = True
+    self.step1_2_2_1_applyToR1Button.visible = False
+    self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_applyToR1Button)
+    self.step1_2_2_1_applyToR1Layout = qt.QFormLayout(self.step1_2_2_1_applyToR1Button)
+    self.step1_2_2_1_applyToR1Layout.setContentsMargins(12,4,4,4)
+
+    # R1 pre selector
+    self.step1_2_2_1_r1PreSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_2_1_r1PreSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_2_1_r1PreSelector.selectNodeUponCreation = False
+    self.step1_2_2_1_r1PreSelector.addEnabled = False
+    self.step1_2_2_1_r1PreSelector.removeEnabled = False
+    self.step1_2_2_1_r1PreSelector.noneEnabled = True
+    self.step1_2_2_1_r1PreSelector.showHidden = False
+    self.step1_2_2_1_r1PreSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_2_1_r1PreSelector.setToolTip("Select pre-irradiation R1 map")
+    self.step1_2_2_1_applyToR1Layout.addRow("R1 pre-irradiation:", self.step1_2_2_1_r1PreSelector)
+
+    # R1 post selector
+    self.step1_2_2_1_r1PostSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_2_1_r1PostSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_2_1_r1PostSelector.selectNodeUponCreation = False
+    self.step1_2_2_1_r1PostSelector.addEnabled = False
+    self.step1_2_2_1_r1PostSelector.removeEnabled = False
+    self.step1_2_2_1_r1PostSelector.noneEnabled = True
+    self.step1_2_2_1_r1PostSelector.showHidden = False
+    self.step1_2_2_1_r1PostSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_2_1_r1PostSelector.setToolTip("Select post-irradiation R1 map")
+    self.step1_2_2_1_applyToR1Layout.addRow("R1 post-irradiation:", self.step1_2_2_1_r1PostSelector)
+
+    # Apply transform button
+    self.step1_2_2_1_applyTransformToR1Button = qt.QPushButton("Apply Transform to R1 Maps")
+    self.step1_2_2_1_applyTransformToR1Button.toolTip = "Resample R1 post using the GRE registration transform"
+    self.step1_2_2_1_applyToR1Layout.addRow(self.step1_2_2_1_applyTransformToR1Button)
+
+    # 1.2.2.1.3. Denoising for calibration
+    self.step1_2_2_1_step3_denoisingButton = ctk.ctkCollapsibleButton()
+    self.step1_2_2_1_step3_denoisingButton.text = "Denoising (optional)"
+    self.step1_2_2_1_step3_denoisingButton.collapsed = True
+    self.step1_2_2_1_step3_denoisingButton.enabled = False
+    self.step1_2_2_1_step3_denoisingButton.visible = False
+    self.step1_2_2_1_deltaRLayout.addRow(self.step1_2_2_1_step3_denoisingButton)
+    self.step1_2_2_1_step3_denoisingLayout = qt.QFormLayout(self.step1_2_2_1_step3_denoisingButton)
+    self.step1_2_2_1_step3_denoisingLayout.setContentsMargins(12,4,4,4)
+
+    # Input image volume
+    self.step1_2_2_1_denoisingInputSelector = slicer.qMRMLNodeComboBox()
+    self.step1_2_2_1_denoisingInputSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step1_2_2_1_denoisingInputSelector.selectNodeUponCreation = False
+    self.step1_2_2_1_denoisingInputSelector.addEnabled = False
+    self.step1_2_2_1_denoisingInputSelector.removeEnabled = False
+    self.step1_2_2_1_denoisingInputSelector.noneEnabled = False
+    self.step1_2_2_1_denoisingInputSelector.showHidden = False
+    self.step1_2_2_1_denoisingInputSelector.setMRMLScene(slicer.mrmlScene)
+    self.step1_2_2_1_denoisingInputSelector.setToolTip("Select volume to denoise")
+    self.step1_2_2_1_step3_denoisingLayout.addRow("Input Image Volume:", self.step1_2_2_1_denoisingInputSelector)
+    
+    # Filter type selector - default: Gradient Anisotropic Diffusion
+    self.step1_2_2_1_filterTypeComboBox = qt.QComboBox()
+    self.step1_2_2_1_filterTypeComboBox.addItem("Gradient Anisotropic Diffusion")
+    self.step1_2_2_1_filterTypeComboBox.addItem("Curvature Anisotropic Diffusion")
+    self.step1_2_2_1_filterTypeComboBox.addItem("Gaussian Blur Image Filter")
+    self.step1_2_2_1_filterTypeComboBox.addItem("Median Image Filter")
+    self.step1_2_2_1_filterTypeComboBox.setCurrentIndex(0)
+    self.step1_2_2_1_filterTypeComboBox.setToolTip("Select denoising filter type")
+    self.step1_2_2_1_step3_denoisingLayout.addRow("Filter type:", self.step1_2_2_1_filterTypeComboBox)
+
+    # Parameter controls
+    # Gradient Anisotropic Diffusion parameters
+    self.step1_2_2_1_gradientIterationsSpinBox = qt.QSpinBox()
+    self.step1_2_2_1_gradientIterationsSpinBox.setRange(1, 50)
+    self.step1_2_2_1_gradientIterationsSpinBox.setValue(30)
+    self.step1_2_2_1_gradientIterationsSpinBox.setToolTip("Number of iterations")
+
+    self.step1_2_2_1_gradientTimeStepSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_2_1_gradientTimeStepSpinBox.setRange(0.001, 0.5)
+    self.step1_2_2_1_gradientTimeStepSpinBox.setSingleStep(0.001)
+    self.step1_2_2_1_gradientTimeStepSpinBox.setValue(0.0625)
+    self.step1_2_2_1_gradientTimeStepSpinBox.setToolTip("Time step")
+
+    self.step1_2_2_1_gradientConductanceSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_2_1_gradientConductanceSpinBox.setRange(0.1, 10.0)
+    self.step1_2_2_1_gradientConductanceSpinBox.setSingleStep(0.1)
+    self.step1_2_2_1_gradientConductanceSpinBox.setValue(1.0)
+    self.step1_2_2_1_gradientConductanceSpinBox.setToolTip("Conductance parameter")
+
+    # Curvature Anisotropic Diffusion parameters
+    self.step1_2_2_1_curvatureIterationsSpinBox = qt.QSpinBox()
+    self.step1_2_2_1_curvatureIterationsSpinBox.setRange(1, 50)
+    self.step1_2_2_1_curvatureIterationsSpinBox.setValue(30)
+    self.step1_2_2_1_curvatureIterationsSpinBox.setToolTip("Number of iterations")
+
+    self.step1_2_2_1_curvatureTimeStepSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_2_1_curvatureTimeStepSpinBox.setRange(0.001, 0.5)
+    self.step1_2_2_1_curvatureTimeStepSpinBox.setSingleStep(0.001)
+    self.step1_2_2_1_curvatureTimeStepSpinBox.setValue(0.0625)
+    self.step1_2_2_1_curvatureTimeStepSpinBox.setToolTip("Time step")
+
+    self.step1_2_2_1_curvatureConductanceSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_2_1_curvatureConductanceSpinBox.setRange(0.1, 10.0)
+    self.step1_2_2_1_curvatureConductanceSpinBox.setSingleStep(0.1)
+    self.step1_2_2_1_curvatureConductanceSpinBox.setValue(1.0)
+    self.step1_2_2_1_curvatureConductanceSpinBox.setToolTip("Conductance parameter")
+
+    # Gaussian Blur Image Filter parameters
+    self.step1_2_2_1_gaussianSigmaSpinBox = qt.QDoubleSpinBox()
+    self.step1_2_2_1_gaussianSigmaSpinBox.setRange(0.1, 10.0)
+    self.step1_2_2_1_gaussianSigmaSpinBox.setSingleStep(0.1)
+    self.step1_2_2_1_gaussianSigmaSpinBox.setValue(1.0)
+    self.step1_2_2_1_gaussianSigmaSpinBox.setToolTip("Sigma (standard deviation)")
+
+    # Median Image Filter parameters
+    self.step1_2_2_1_medianNeighborhoodSpinBox = qt.QSpinBox()
+    self.step1_2_2_1_medianNeighborhoodSpinBox.setRange(1, 11)
+    self.step1_2_2_1_medianNeighborhoodSpinBox.setSingleStep(2)
+    self.step1_2_2_1_medianNeighborhoodSpinBox.setValue(3)
+    self.step1_2_2_1_medianNeighborhoodSpinBox.setToolTip("Neighborhood size (odd number)")
+
+    # Parameter layout
+    # Gradient Anisotropic Diffusion parameters
+    self.step1_2_2_1_gradientParamsWidget = qt.QWidget()
+    gradientLayout = qt.QFormLayout(self.step1_2_2_1_gradientParamsWidget)
+    gradientLayout.setContentsMargins(0,0,0,0)
+    gradientLayout.addRow("Iterations:", self.step1_2_2_1_gradientIterationsSpinBox)
+    gradientLayout.addRow("Time step:", self.step1_2_2_1_gradientTimeStepSpinBox)
+    gradientLayout.addRow("Conductance:", self.step1_2_2_1_gradientConductanceSpinBox)
+    self.step1_2_2_1_step3_denoisingLayout.addRow(self.step1_2_2_1_gradientParamsWidget)
+
+    # Curvature Anisotropic Diffusion parameter
+    self.step1_2_2_1_curvatureParamsWidget = qt.QWidget()
+    curvatureLayout = qt.QFormLayout(self.step1_2_2_1_curvatureParamsWidget)
+    curvatureLayout.setContentsMargins(0,0,0,0)
+    curvatureLayout.addRow("Iterations:", self.step1_2_2_1_curvatureIterationsSpinBox)
+    curvatureLayout.addRow("Time step:", self.step1_2_2_1_curvatureTimeStepSpinBox)
+    curvatureLayout.addRow("Conductance:", self.step1_2_2_1_curvatureConductanceSpinBox)
+    self.step1_2_2_1_step3_denoisingLayout.addRow(self.step1_2_2_1_curvatureParamsWidget)
+
+    # Gaussian Blur Image Filter parameters
+    self.step1_2_2_1_gaussianParamsWidget = qt.QWidget()
+    gaussianLayout = qt.QFormLayout(self.step1_2_2_1_gaussianParamsWidget)
+    gaussianLayout.setContentsMargins(0,0,0,0)
+    gaussianLayout.addRow("Sigma:", self.step1_2_2_1_gaussianSigmaSpinBox)
+    self.step1_2_2_1_step3_denoisingLayout.addRow(self.step1_2_2_1_gaussianParamsWidget)
+
+    # Median Image Filter parameters
+    self.step1_2_2_1_medianParamsWidget = qt.QWidget()
+    medianLayout = qt.QFormLayout(self.step1_2_2_1_medianParamsWidget)
+    medianLayout.setContentsMargins(0,0,0,0)
+    medianLayout.addRow("Kernel size:", self.step1_2_2_1_medianNeighborhoodSpinBox)
+    self.step1_2_2_1_step3_denoisingLayout.addRow(self.step1_2_2_1_medianParamsWidget)
+
+    # Apply Denoising button
+    self.step1_2_2_1_applyDenoisingButton = qt.QPushButton("Apply Denoising")
+    self.step1_2_2_1_applyDenoisingButton.toolTip = "Apply selected denoising filter to volume"
+    self.step1_2_2_1_step3_denoisingLayout.addRow(self.step1_2_2_1_applyDenoisingButton)
+    self.onCalibrationFilterTypeChanged(0)
+
+    # 1.2.2.1.4. Compute Delta R for calibration
+    self.step1_2_2_1_step4_computeButton = ctk.ctkCollapsibleButton()
+    self.step1_2_2_1_step4_computeButton.text = "Compute ΔR1 or ΔR2 map"
+    self.step1_2_2_1_step4_computeButton.collapsed = True
+    self.step1_2_2_1_step4_computeButton.enabled = False
+    self.step1_2_2_1_step4_computeButton.visible = False
+    self.step1_2_2_1_deltaRLayout.addRow(self.step1_2_2_1_step4_computeButton)
+    self.step1_2_2_1_step4_computeLayout = qt.QFormLayout(self.step1_2_2_1_step4_computeButton)
+    self.step1_2_2_1_step4_computeLayout.setContentsMargins(12,4,4,4)
+    self.step1_2_2_1_step4_computeLayout.setSpacing(4)
+    
+    self.step1_2_2_1_computeDeltaRButton = qt.QPushButton("Compute ΔR1 or ΔR2 map")
+    self.step1_2_2_1_computeDeltaRButton.toolTip = "Subtract pre- from registered post-irradiation volume"
+    self.step1_2_2_1_computeDeltaRButton.enabled = False
+    self.step1_2_2_1_step4_computeLayout.addRow(self.step1_2_2_1_computeDeltaRButton)
+    self.step1_2_2_1_statusLabel = qt.QLabel("")
+    self.step1_2_2_1_statusLabel.setWordWrap(True)
+    self.step1_2_2_1_deltaRLayout.addRow(self.step1_2_2_1_statusLabel)
+    
+    # Make Steps 1-4 mutually exclusive for calibration gel
+    self.step1_2_2_1_stepsButtonGroup = qt.QButtonGroup()
+    self.step1_2_2_1_stepsButtonGroup.addButton(self.step1_2_2_1_step2_registrationButton)
+    self.step1_2_2_1_stepsButtonGroup.addButton(self.step1_2_2_1_step3_denoisingButton)
+    self.step1_2_2_1_stepsButtonGroup.addButton(self.step1_2_2_1_step4_computeButton)
+
+    # Make 1.2.1 and 1.2.2 mutually exclusive
+    self.step1_2_buttonGroup = qt.QButtonGroup()
+    self.step1_2_buttonGroup.addButton(self.step1_2_1_measuredGelCollapsibleButton)
+    self.step1_2_buttonGroup.addButton(self.step1_2_2_calibrationGelCollapsibleButton)
+    
     # Connections
     self.step1_showDicomBrowserButton.connect('clicked()', self.logic.onDicomLoad)
-    self.step1_loadNonDicomDataButton.connect('clicked()', self.onLoadNonDicomData)
     self.step1_loadDataCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep1_LoadDataCollapsed)
+    self.step1_loadNonDicomDataButton.connect('clicked()', self.onLoadNonDicomData)
+    self.step1_2_nonDicomCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep1_2_Collapsed)   
+    self.step1_2_1_preScanSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onPreScanSelected)
+    self.step1_2_1_postScanSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onPostScanSelected)
+    self.step1_2_2_loadNonDicomDataButton.connect('clicked()', self.onLoadNonDicomData)
+    self.step1_2_2_preScanSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCalibrationPreScanSelected)
+    self.step1_2_2_postScanSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCalibrationPostScanSelected)
+    self.step1_2_1_1_registerButton.connect('clicked()', self.onRegisterPrePost)
+    self.step1_2_1_1_translationSliders.connect('valuesChanged()', self.onManualTransformChanged)
+    self.step1_2_1_1_rotationSliders.connect('valuesChanged()', self.onManualTransformChanged)
+    self.step1_2_1_1_resampleButton.connect('clicked()', self.onResampleMeasured)
+    self.step1_2_1_1_useGRECheckBox.connect('toggled(bool)', self.onUseGREToggled)
+    self.step1_2_1_1_applyTransformToR1Button.connect('clicked()', self.onApplyTransformToR1)
+    self.step1_2_1_1_step3_denoisingButton.connect('contentsCollapsed(bool)', lambda collapsed: self.onFilterTypeChanged(self.step1_2_1_1_filterTypeComboBox.currentIndex) if not collapsed else None)
+    self.step1_2_1_1_filterTypeComboBox.connect('currentIndexChanged(int)', self.onFilterTypeChanged) # Show parameters for that selected filter
+    self.step1_2_1_1_applyDenoisingButton.connect('clicked()', self.onApplyDenoising)
+    self.step1_2_1_1_computeDeltaRButton.connect('clicked()', self.onComputeDeltaR)
+    self.step1_2_2_1_registerButton.connect('clicked()', self.onCalibrationRegisterPrePost)
+    self.step1_2_2_1_translationSliders.connect('valuesChanged()', self.onCalibrationManualTransformChanged)
+    self.step1_2_2_1_rotationSliders.connect('valuesChanged()', self.onCalibrationManualTransformChanged)
+    self.step1_2_2_1_resampleButton.connect('clicked()', self.onResampleCalibration)
+    self.step1_2_2_1_useGRECheckBox.connect('toggled(bool)', self.onCalibrationUseGREToggled)
+    self.step1_2_2_1_applyTransformToR1Button.connect('clicked()', self.onCalibrationApplyTransformToR1)
+    self.step1_2_2_1_step3_denoisingButton.connect('contentsCollapsed(bool)', lambda collapsed: self.onCalibrationFilterTypeChanged(self.step1_2_2_1_filterTypeComboBox.currentIndex) if not collapsed else None)
+    self.step1_2_2_1_filterTypeComboBox.connect('currentIndexChanged(int)', self.onCalibrationFilterTypeChanged)
+    self.step1_2_2_1_applyDenoisingButton.connect('clicked()', self.onCalibrationApplyDenoising)
+    self.step1_2_2_1_computeDeltaRButton.connect('clicked()', self.onCalibrationComputeDeltaR)
+
+    # Make 1.1 and 1.2 mutually exclusive
+    self.step1_loadDataButtonGroup = qt.QButtonGroup()
+    self.step1_loadDataButtonGroup.addButton(self.step1_1_dicomCollapsibleButton)
+    self.step1_loadDataButtonGroup.addButton(self.step1_2_nonDicomCollapsibleButton)
+    
 
   #------------------------------------------------------------------------------
   def setup_Step2_Registration(self):
@@ -372,49 +970,49 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step2_registrationCollapsibleButtonLayout.setSpacing(4)
 
     # ------------------------------------------
-    # Step 2.1: CBCT to PLANCT registration panel
-    self.step2_1_planCtToCbctRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_1_planCtToCbctRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_1_planCtToCbctRegistrationCollapsibleButton.text = "2.1. Register planning CT to CBCT"
-    self.step2_registrationCollapsibleButtonLayout.addWidget(self.step2_1_planCtToCbctRegistrationCollapsibleButton)
-    self.step2_1_planCtToCbctRegistrationLayout = qt.QVBoxLayout(self.step2_1_planCtToCbctRegistrationCollapsibleButton)
-    self.step2_1_planCtToCbctRegistrationLayout.setContentsMargins(12,4,4,4)
-    self.step2_1_planCtToCbctRegistrationLayout.setSpacing(0)
+    # Step 2.1: IGRT volume to planning volume registration panel
+    self.step2_1_planningToIGRTRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_1_planningToIGRTRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButton.text = "2.1. Register planning volume to IGRT volume"
+    self.step2_registrationCollapsibleButtonLayout.addWidget(self.step2_1_planningToIGRTRegistrationCollapsibleButton)
+    self.step2_1_planningToIGRTRegistrationLayout = qt.QVBoxLayout(self.step2_1_planningToIGRTRegistrationCollapsibleButton)
+    self.step2_1_planningToIGRTRegistrationLayout.setContentsMargins(12,4,4,4)
+    self.step2_1_planningToIGRTRegistrationLayout.setSpacing(0)
 
     # Radio button for selecting registration type
-    self.step2_1_registrationTypeLayout = qt.QHBoxLayout(self.step2_1_planCtToCbctRegistrationCollapsibleButton)
+    self.step2_1_registrationTypeLayout = qt.QHBoxLayout(self.step2_1_planningToIGRTRegistrationCollapsibleButton)
     self.step2_1_registrationTypeLabel = qt.QLabel('Registration type:')
     self.step2_1_registrationTypeAutomaticRadioButton = qt.QRadioButton('Automatic image-based')
     self.step2_1_registrationTypeLandmarkRadioButton = qt.QRadioButton('Landmark-based')
     self.step2_1_registrationTypeLayout.addWidget(self.step2_1_registrationTypeLabel)
     self.step2_1_registrationTypeLayout.addWidget(self.step2_1_registrationTypeAutomaticRadioButton)
     self.step2_1_registrationTypeLayout.addWidget(self.step2_1_registrationTypeLandmarkRadioButton)
-    self.step2_1_planCtToCbctRegistrationLayout.addLayout(self.step2_1_registrationTypeLayout)
+    self.step2_1_planningToIGRTRegistrationLayout.addLayout(self.step2_1_registrationTypeLayout)
 
     # Add empty row
-    self.step2_1_planCtToCbctRegistrationLayout.addWidget(qt.QLabel(' '))
+    self.step2_1_planningToIGRTRegistrationLayout.addWidget(qt.QLabel(' '))
 
     #
-    # Automatic CBCT to PLANCT registration
+    # Automatic IGRT volume to planning volume registration
     #
-    self.step2_1_planCtToCbctRegistrationFrame = qt.QFrame(self.step2_1_planCtToCbctRegistrationCollapsibleButton)
-    self.step2_1_planCtToCbctRegistrationFrameLayout = qt.QFormLayout(self.step2_1_planCtToCbctRegistrationFrame)
-    self.step2_1_planCtToCbctRegistrationFrameLayout.setContentsMargins(0,0,0,0)
-    self.step2_1_planCtToCbctRegistrationFrameLayout.setSpacing(4)
+    self.step2_1_planningToIGRTRegistrationFrame = qt.QFrame(self.step2_1_planningToIGRTRegistrationCollapsibleButton)
+    self.step2_1_planningToIGRTRegistrationFrameLayout = qt.QFormLayout(self.step2_1_planningToIGRTRegistrationFrame)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.setContentsMargins(0,0,0,0)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.setSpacing(4)
 
     # Registration label
-    self.step2_1_registrationLabel = qt.QLabel("Automatically register the CBCT volume to the planning CT.\nIt should take several seconds.")
+    self.step2_1_registrationLabel = qt.QLabel("Automatically register the planning volume to the IGRT volume.\nIt should take several seconds.")
     self.step2_1_registrationLabel.wordWrap = True
-    self.step2_1_planCtToCbctRegistrationFrameLayout.addRow(self.step2_1_registrationLabel)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.addRow(self.step2_1_registrationLabel)
 
-    # CBCT to PLANCT registration button
-    self.step2_1_registerPlanCtToCbctButton = qt.QPushButton("Perform registration")
-    self.step2_1_registerPlanCtToCbctButton.toolTip = "Register planning CT volume to CBCT volume"
-    self.step2_1_registerPlanCtToCbctButton.name = "step2_1_registerPlanCtToCbctButton"
-    self.step2_1_planCtToCbctRegistrationFrameLayout.addRow(self.step2_1_registerPlanCtToCbctButton)
+    # IGRT volume to planning volume registration button
+    self.step2_1_registerPlanningToIGRTButton = qt.QPushButton("Perform registration")
+    self.step2_1_registerPlanningToIGRTButton.toolTip = "Register planning volume to IGRT volume"
+    self.step2_1_registerPlanningToIGRTButton.name = "step2_1_registerPlanningToIGRTButton"
+    self.step2_1_planningToIGRTRegistrationFrameLayout.addRow(self.step2_1_registerPlanningToIGRTButton)
 
     # Add empty row
-    self.step2_1_planCtToCbctRegistrationFrameLayout.addRow(' ', None)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.addRow(' ', None)
 
     # Transform fine-tune controls
     self.step2_1_transformSlidersInfoLabel = qt.QLabel("If registration result is not satisfactory, a simple re-run of the registration may solve it.\nOtherwise adjust result registration transform if needed:")
@@ -432,158 +1030,214 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     rotationGroupBox = slicer.util.findChildren(widget=self.step2_1_rotationSliders, className='ctkCollapsibleGroupBox')[0]
     rotationGroupBox.collapsed  = True # Collapse by default
     # self.step2_1_rotationSliders.setMRMLScene(slicer.mrmlScene) # If scene is set, then mm appears instead of degrees
-    self.step2_1_planCtToCbctRegistrationFrameLayout.addRow(self.step2_1_transformSlidersInfoLabel)
-    self.step2_1_planCtToCbctRegistrationFrameLayout.addRow(self.step2_1_translationSliders)
-    self.step2_1_planCtToCbctRegistrationFrameLayout.addRow(self.step2_1_rotationSliders)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.addRow(self.step2_1_transformSlidersInfoLabel)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.addRow(self.step2_1_translationSliders)
+    self.step2_1_planningToIGRTRegistrationFrameLayout.addRow(self.step2_1_rotationSliders)
 
-    self.step2_1_planCtToCbctRegistrationLayout.addWidget(self.step2_1_planCtToCbctRegistrationFrame)
+    self.step2_1_planningToIGRTRegistrationLayout.addWidget(self.step2_1_planningToIGRTRegistrationFrame)
 
     #
-    # Landmark CBCT to PLANCT registration
+    # Landmark IGRT volume to planning volume registration
     #
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrame = qt.QFrame(self.step2_1_planCtToCbctRegistrationCollapsibleButton)
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrameLayout = qt.QFormLayout(self.step2_1_landmarkPlanCtToCbctRegistrationFrame)
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrameLayout.setContentsMargins(0,0,0,0)
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrameLayout.setSpacing(4)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrame = qt.QFrame(self.step2_1_planningToIGRTRegistrationCollapsibleButton)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrameLayout = qt.QFormLayout(self.step2_1_landmarkPlanningToIGRTRegistrationFrame)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrameLayout.setContentsMargins(0,0,0,0)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrameLayout.setSpacing(4)
 
-    # Step 2.1.1: Select CBCT fiducials on CBCT volume
-    self.step2_1_1_cbctFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_1_1_cbctFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_1_1_cbctFiducialSelectionCollapsibleButton.text = "2.1.1 Select CBCT fiducial points"
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrameLayout.addWidget(self.step2_1_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_1_1_cbctFiducialSelectionLayout = qt.QFormLayout(self.step2_1_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_1_1_cbctFiducialSelectionLayout.setContentsMargins(12,4,4,4)
-    self.step2_1_1_cbctFiducialSelectionLayout.setSpacing(4)
+    # Step 2.1.1: Select IGRT fiducials on IGRT volume
+    self.step2_1_1_igrtFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_1_1_igrtFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_1_1_igrtFiducialSelectionCollapsibleButton.text = "2.1.1 Select IGRT fiducial points"
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrameLayout.addWidget(self.step2_1_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_1_1_igrtFiducialSelectionLayout = qt.QFormLayout(self.step2_1_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_1_1_igrtFiducialSelectionLayout.setContentsMargins(12,4,4,4)
+    self.step2_1_1_igrtFiducialSelectionLayout.setSpacing(4)
 
     # Create instructions label
-    self.step2_1_1_instructionsLayout = qt.QHBoxLayout(self.step2_1_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_1_1_cbctFiducialSelectionInfoLabel = qt.QLabel("Locate image plane of the CBCT fiducials, then click the 'Place fiducials' button (blue arrow with red dot). Next, select the fiducial points in the displayed image plane.")
-    self.step2_1_1_cbctFiducialSelectionInfoLabel.wordWrap = True
+    self.step2_1_1_instructionsLayout = qt.QHBoxLayout(self.step2_1_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_1_1_igrtFiducialSelectionInfoLabel = qt.QLabel("Locate image plane of the IGRT fiducials, then click the 'Place fiducials' button (blue arrow with red dot). Next, select the fiducial points in the displayed image plane.")
+    self.step2_1_1_igrtFiducialSelectionInfoLabel.wordWrap = True
     self.step2_1_1_helpLabel = qt.QLabel()
     self.step2_1_1_helpLabel.pixmap = qt.QPixmap(':Icons/Help.png')
     self.step2_1_1_helpLabel.maximumWidth = 24
     self.step2_1_1_helpLabel.toolTip = "Hint: Use Shift key for '3D cursor' navigation."
-    self.step2_1_1_instructionsLayout.addWidget(self.step2_1_1_cbctFiducialSelectionInfoLabel)
+    self.step2_1_1_instructionsLayout.addWidget(self.step2_1_1_igrtFiducialSelectionInfoLabel)
     self.step2_1_1_instructionsLayout.addWidget(self.step2_1_1_helpLabel)
-    self.step2_1_1_cbctFiducialSelectionLayout.addRow(self.step2_1_1_instructionsLayout)
+    self.step2_1_1_igrtFiducialSelectionLayout.addRow(self.step2_1_1_instructionsLayout)
 
-    # CBCT fiducial selector simple markups widget
-    self.step2_1_1_cbctFiducialList = slicer.qSlicerSimpleMarkupsWidget()
-    self.step2_1_1_cbctFiducialList.setMRMLScene(slicer.mrmlScene)
-    self.step2_1_1_cbctFiducialSelectionLayout.addRow(self.step2_1_1_cbctFiducialList)
+    # IGRT fiducial selector simple markups widget
+    self.step2_1_1_igrtFiducialList = slicer.qSlicerSimpleMarkupsWidget()
+    self.step2_1_1_igrtFiducialList.setMRMLScene(slicer.mrmlScene)
+    self.step2_1_1_igrtFiducialSelectionLayout.addRow(self.step2_1_1_igrtFiducialList)
 
-    # Step 2.1.2: Select PLANCT fiducials on PLANCT volume
-    self.step2_1_2_planCtFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_1_2_planCtFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_1_2_planCtFiducialSelectionCollapsibleButton.text = "2.1.2 Select planning CT fiducial points"
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrameLayout.addWidget(self.step2_1_2_planCtFiducialSelectionCollapsibleButton)
-    self.step2_1_2_planCtFiducialSelectionLayout = qt.QFormLayout(self.step2_1_2_planCtFiducialSelectionCollapsibleButton)
-    self.step2_1_2_planCtFiducialSelectionLayout.setContentsMargins(12,4,4,4)
-    self.step2_1_2_planCtFiducialSelectionLayout.setSpacing(4)
+    # Step 2.1.2: Select planning fiducials on planning volume
+    self.step2_1_2_planningFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_1_2_planningFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_1_2_planningFiducialSelectionCollapsibleButton.text = "2.1.2 Select planning fiducial points"
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrameLayout.addWidget(self.step2_1_2_planningFiducialSelectionCollapsibleButton)
+    self.step2_1_2_planningFiducialSelectionLayout = qt.QFormLayout(self.step2_1_2_planningFiducialSelectionCollapsibleButton)
+    self.step2_1_2_planningFiducialSelectionLayout.setContentsMargins(12,4,4,4)
+    self.step2_1_2_planningFiducialSelectionLayout.setSpacing(4)
 
     # Create instructions label
-    self.step2_1_2_instructionsLayout = qt.QHBoxLayout(self.step2_1_2_planCtFiducialSelectionCollapsibleButton)
-    self.step2_1_2_planCtFiducialSelectionInfoLabel = qt.QLabel("Select the fiducial points in the planning CT volume in the same order as the CBCT fiducials were selected.")
-    self.step2_1_2_planCtFiducialSelectionInfoLabel.wordWrap = True
+    self.step2_1_2_instructionsLayout = qt.QHBoxLayout(self.step2_1_2_planningFiducialSelectionCollapsibleButton)
+    self.step2_1_2_planningFiducialSelectionInfoLabel = qt.QLabel("Select the fiducial points in the planning volume in the same order as the IGRT fiducials were selected.")
+    self.step2_1_2_planningFiducialSelectionInfoLabel.wordWrap = True
     self.step2_1_2_helpLabel = qt.QLabel()
     self.step2_1_2_helpLabel.pixmap = qt.QPixmap(':Icons/Help.png')
     self.step2_1_2_helpLabel.maximumWidth = 24
     self.step2_1_2_helpLabel.toolTip = "Hint: Use Shift key for '3D cursor' navigation.\nHint: If gel dosimeter volume is too dark or low contrast, press left mouse button on the image and drag it to change window/level"
-    self.step2_1_2_instructionsLayout.addWidget(self.step2_1_2_planCtFiducialSelectionInfoLabel)
+    self.step2_1_2_instructionsLayout.addWidget(self.step2_1_2_planningFiducialSelectionInfoLabel)
     self.step2_1_2_instructionsLayout.addWidget(self.step2_1_2_helpLabel)
-    self.step2_1_2_planCtFiducialSelectionLayout.addRow(self.step2_1_2_instructionsLayout)
+    self.step2_1_2_planningFiducialSelectionLayout.addRow(self.step2_1_2_instructionsLayout)
 
     # Measured fiducial selector simple markups widget
-    self.step2_1_2_planCtFiducialList = slicer.qSlicerSimpleMarkupsWidget()
-    self.step2_1_2_planCtFiducialList.setMRMLScene(slicer.mrmlScene)
-    self.step2_1_2_planCtFiducialSelectionLayout.addRow(self.step2_1_2_planCtFiducialList)
+    self.step2_1_2_planningFiducialList = slicer.qSlicerSimpleMarkupsWidget()
+    self.step2_1_2_planningFiducialList.setMRMLScene(slicer.mrmlScene)
+    self.step2_1_2_planningFiducialSelectionLayout.addRow(self.step2_1_2_planningFiducialList)
 
     # Step 2.1.3: Perform registration
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButton.text = "2.1.3 Perform registration"
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout = qt.QFormLayout(self.step2_1_3_planCtToCbctRegistrationCollapsibleButton)
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout.setSpacing(4)
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrameLayout.addWidget(self.step2_1_3_planCtToCbctRegistrationCollapsibleButton)
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButton.text = "2.1.3 Perform registration"
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout = qt.QFormLayout(self.step2_1_3_planningToIGRTRegistrationCollapsibleButton)
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout.setSpacing(4)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrameLayout.addWidget(self.step2_1_3_planningToIGRTRegistrationCollapsibleButton)
 
-    # Registration button - register PLANCT to CBCT with fiducial registration
-    self.step2_1_3_registerPlanCtToCbctButton = qt.QPushButton("Register planning CT to CBCT")
-    self.step2_1_3_registerPlanCtToCbctButton.toolTip = "Perform fiducial registration between planning CT volume and CBCT"
-    self.step2_1_3_registerPlanCtToCbctButton.name = "registerPlanCtToCbctButton"
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout.addRow(self.step2_1_3_registerPlanCtToCbctButton)
+    # Registration button - register planning volume to IGRT volume with fiducial registration
+    self.step2_1_3_registerPlanningToIGRTButton = qt.QPushButton("Register planning volume to IGRT volume")
+    self.step2_1_3_registerPlanningToIGRTButton.toolTip = "Perform fiducial registration between planning volume and IGRT volume"
+    self.step2_1_3_registerPlanningToIGRTButton.name = "registerPlanningToIGRTButton"
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout.addRow(self.step2_1_3_registerPlanningToIGRTButton)
 
     # Fiducial error label
-    self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel = qt.QLabel('[Not yet performed]')
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout.addRow('Fiducial registration error: ', self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel)
+    self.step2_1_3_planningToIGRTFiducialRegistrationErrorLabel = qt.QLabel('[Not yet performed]')
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout.addRow('Fiducial registration error: ', self.step2_1_3_planningToIGRTFiducialRegistrationErrorLabel)
 
     # Add empty row
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout.addRow(' ', None)
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout.addRow(' ', None)
 
     # Note label about fiducial error
     self.step2_1_3_NoteLabel = qt.QLabel("Note: Typical registration error is < 3mm")
-    self.step2_1_3_planCtToCbctRegistrationCollapsibleButtonLayout.addRow(self.step2_1_3_NoteLabel)
+    self.step2_1_3_planningToIGRTRegistrationCollapsibleButtonLayout.addRow(self.step2_1_3_NoteLabel)
 
     # Add substeps in button groups
-    self.step2_1_planCtToCbctRegistrationCollapsibleButtonGroup = qt.QButtonGroup()
-    self.step2_1_planCtToCbctRegistrationCollapsibleButtonGroup.addButton(self.step2_1_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_1_planCtToCbctRegistrationCollapsibleButtonGroup.addButton(self.step2_1_2_planCtFiducialSelectionCollapsibleButton)
-    self.step2_1_planCtToCbctRegistrationCollapsibleButtonGroup.addButton(self.step2_1_3_planCtToCbctRegistrationCollapsibleButton)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButtonGroup = qt.QButtonGroup()
+    self.step2_1_planningToIGRTRegistrationCollapsibleButtonGroup.addButton(self.step2_1_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButtonGroup.addButton(self.step2_1_2_planningFiducialSelectionCollapsibleButton)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButtonGroup.addButton(self.step2_1_3_planningToIGRTRegistrationCollapsibleButton)
 
-    self.step2_1_planCtToCbctRegistrationLayout.addWidget(self.step2_1_landmarkPlanCtToCbctRegistrationFrame)
+    self.step2_1_planningToIGRTRegistrationLayout.addWidget(self.step2_1_landmarkPlanningToIGRTRegistrationFrame)
 
     # Automatic registration by default
     self.step2_1_registrationTypeAutomaticRadioButton.setChecked(True)
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrame.setVisible(False)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrame.setVisible(False)
 
     # --------------------------------------------------------
-    # Step 2.2: Gel CT scan to cone beam CT registration panel
-    self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton.text = "2.2. Register gel dosimeter volume to CBCT"
-    self.step2_registrationCollapsibleButtonLayout.addWidget(self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton)
-    self.step2_2_measuredDoseToCbctRegistrationLayout = qt.QVBoxLayout(self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton)
-    self.step2_2_measuredDoseToCbctRegistrationLayout.setContentsMargins(12,4,4,4)
-    self.step2_2_measuredDoseToCbctRegistrationLayout.setSpacing(4)
+    # Step 2.2: Measured gel volume to IGRT volume registration panel
+    self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton.text = "2.2. Register gel dosimeter volume to IGRT volume"
+    self.step2_registrationCollapsibleButtonLayout.addWidget(self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton)
+    self.step2_2_measuredDoseToIgrtRegistrationLayout = qt.QVBoxLayout(self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton)
+    self.step2_2_measuredDoseToIgrtRegistrationLayout.setContentsMargins(12,4,4,4)
+    self.step2_2_measuredDoseToIgrtRegistrationLayout.setSpacing(0)
 
-    # Step 2.2.1: Select CBCT fiducials on CBCT volume
-    self.step2_2_1_cbctFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_2_1_cbctFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_2_1_cbctFiducialSelectionCollapsibleButton.text = "2.2.1 Select CBCT fiducial points"
-    self.step2_2_measuredDoseToCbctRegistrationLayout.addWidget(self.step2_2_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_2_1_cbctFiducialSelectionLayout = qt.QFormLayout(self.step2_2_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_2_1_cbctFiducialSelectionLayout.setContentsMargins(12,4,4,4)
-    self.step2_2_1_cbctFiducialSelectionLayout.setSpacing(4)
+    # Radio button for selecting registration type
+    self.step2_2_registrationTypeLayout = qt.QHBoxLayout()
+    self.step2_2_registrationTypeLabel = qt.QLabel('Registration type:')
+    self.step2_2_registrationTypeAutomaticRadioButton = qt.QRadioButton('Automatic image-based')
+    self.step2_2_registrationTypeLandmarkRadioButton = qt.QRadioButton('Landmark-based')
+    self.step2_2_registrationTypeLayout.addWidget(self.step2_2_registrationTypeLabel)
+    self.step2_2_registrationTypeLayout.addWidget(self.step2_2_registrationTypeLandmarkRadioButton)
+    self.step2_2_registrationTypeLayout.addWidget(self.step2_2_registrationTypeAutomaticRadioButton)
+    self.step2_2_measuredDoseToIgrtRegistrationLayout.addLayout(self.step2_2_registrationTypeLayout)
+    self.step2_2_measuredDoseToIgrtRegistrationLayout.addWidget(qt.QLabel(' '))
+
+    # Automatic gel volume to IGRT volume
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrame = qt.QFrame(self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout = qt.QFormLayout(self.step2_2_automaticMeasuredToIgrtRegistrationFrame)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.setContentsMargins(0,0,0,0)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.setSpacing(4)
+
+    # Registration label
+    self.step2_2_automaticRegistrationLabel = qt.QLabel("Automatically register the gel dosimeter volume to the IGRT volume.\nIt should take several seconds.")
+    self.step2_2_automaticRegistrationLabel.wordWrap = True
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.addRow(self.step2_2_automaticRegistrationLabel)
+
+    # Gel volume to IGRT volume registration button
+    self.step2_2_registerMeasuredToIgrtAutomaticButton = qt.QPushButton("Perform registration")
+    self.step2_2_registerMeasuredToIgrtAutomaticButton.toolTip = "Automatically register gel dosimeter volume to IGRT volume"
+    self.step2_2_registerMeasuredToIgrtAutomaticButton.name = "step2_2_registerMeasuredToIgrtAutomaticButton"
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.addRow(self.step2_2_registerMeasuredToIgrtAutomaticButton)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.addRow(' ', None)
+
+    # Transform fine-tune controls
+    self.step2_2_transformSlidersInfoLabel = qt.QLabel("If registration result is not satisfactory, a simple re-run of the registration may solve it.\nOtherwise adjust result registration transform if needed:")
+    self.step2_2_transformSlidersInfoLabel.wordWrap = True
+    self.step2_2_translationSliders = slicer.qMRMLTransformSliders()
+    translationGroupBox22 = slicer.util.findChildren(widget=self.step2_2_translationSliders, className='ctkCollapsibleGroupBox')[0]
+    translationGroupBox22.collapsed = True
+    self.step2_2_translationSliders.setMRMLScene(slicer.mrmlScene)
+    self.step2_2_rotationSliders = slicer.qMRMLTransformSliders()
+    self.step2_2_rotationSliders.minMaxVisible = False
+    self.step2_2_rotationSliders.TypeOfTransform = slicer.qMRMLTransformSliders.ROTATION
+    self.step2_2_rotationSliders.Title = "Rotation"
+    self.step2_2_rotationSliders.CoordinateReference = slicer.qMRMLTransformSliders.LOCAL
+    rotationGroupBox22 = slicer.util.findChildren(widget=self.step2_2_rotationSliders, className='ctkCollapsibleGroupBox')[0]
+    rotationGroupBox22.collapsed = True
+
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.addRow(self.step2_2_transformSlidersInfoLabel)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.addRow(self.step2_2_translationSliders)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrameLayout.addRow(self.step2_2_rotationSliders)
+
+    self.step2_2_measuredDoseToIgrtRegistrationLayout.addWidget(self.step2_2_automaticMeasuredToIgrtRegistrationFrame)
+
+    # Landmark gel volume to IGRT volume
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrame = qt.QFrame(self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton)
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrameLayout = qt.QFormLayout(self.step2_2_landmarkMeasuredToIgrtRegistrationFrame)
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrameLayout.setContentsMargins(0,0,0,0)
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrameLayout.setSpacing(4)
+
+    # Step 2.2.1: Select IGRT fiducials on IGRT volume
+    self.step2_2_1_igrtFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_2_1_igrtFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_2_1_igrtFiducialSelectionCollapsibleButton.text = "2.2.1 Select IGRT fiducial points"
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrameLayout.addWidget(self.step2_2_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_2_1_igrtFiducialSelectionLayout = qt.QFormLayout(self.step2_2_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_2_1_igrtFiducialSelectionLayout.setContentsMargins(12,4,4,4)
+    self.step2_2_1_igrtFiducialSelectionLayout.setSpacing(4)
 
     # Create instructions label
-    self.step2_2_1_instructionsLayout = qt.QHBoxLayout(self.step2_2_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_2_1_cbctFiducialSelectionInfoLabel = qt.QLabel("Locate image plane of the CBCT fiducials, then click the 'Place fiducials' button (blue arrow with red dot). Next, select the fiducial points in the displayed image plane.")
-    self.step2_2_1_cbctFiducialSelectionInfoLabel.wordWrap = True
+    self.step2_2_1_instructionsLayout = qt.QHBoxLayout(self.step2_2_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_2_1_igrtFiducialSelectionInfoLabel = qt.QLabel("Locate image plane of the IGRT fiducials, then click the 'Place fiducials' button (blue arrow with red dot). Next, select the fiducial points in the displayed image plane.")
+    self.step2_2_1_igrtFiducialSelectionInfoLabel.wordWrap = True
     self.step2_2_1_helpLabel = qt.QLabel()
     self.step2_2_1_helpLabel.pixmap = qt.QPixmap(':Icons/Help.png')
     self.step2_2_1_helpLabel.maximumWidth = 24
     self.step2_2_1_helpLabel.toolTip = "Hint: Use Shift key for '3D cursor' navigation."
-    self.step2_2_1_instructionsLayout.addWidget(self.step2_2_1_cbctFiducialSelectionInfoLabel)
+    self.step2_2_1_instructionsLayout.addWidget(self.step2_2_1_igrtFiducialSelectionInfoLabel)
     self.step2_2_1_instructionsLayout.addWidget(self.step2_2_1_helpLabel)
-    self.step2_2_1_cbctFiducialSelectionLayout.addRow(self.step2_2_1_instructionsLayout)
+    self.step2_2_1_igrtFiducialSelectionLayout.addRow(self.step2_2_1_instructionsLayout)
 
-    # CBCT fiducial selector simple markups widget
-    self.step2_2_1_cbctFiducialList = slicer.qSlicerSimpleMarkupsWidget()
-    self.step2_2_1_cbctFiducialList.setMRMLScene(slicer.mrmlScene)
-    self.step2_2_1_cbctFiducialSelectionLayout.addRow(self.step2_2_1_cbctFiducialList)
+    # IGRT fiducial selector simple markups widget
+    self.step2_2_1_igrtFiducialList = slicer.qSlicerSimpleMarkupsWidget()
+    self.step2_2_1_igrtFiducialList.setMRMLScene(slicer.mrmlScene)
+    self.step2_2_1_igrtFiducialSelectionLayout.addRow(self.step2_2_1_igrtFiducialList)
 
     # Step 2.2.2: Select MEASURED fiducials on MEASURED dose volume
     self.step2_2_2_measuredFiducialSelectionCollapsibleButton = ctk.ctkCollapsibleButton()
     self.step2_2_2_measuredFiducialSelectionCollapsibleButton.setProperty('collapsedHeight', 4)
     self.step2_2_2_measuredFiducialSelectionCollapsibleButton.text = "2.2.2 Select measured gel dosimeter fiducial points"
-    self.step2_2_measuredDoseToCbctRegistrationLayout.addWidget(self.step2_2_2_measuredFiducialSelectionCollapsibleButton)
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrameLayout.addWidget(self.step2_2_2_measuredFiducialSelectionCollapsibleButton)
     self.step2_2_2_measuredFiducialSelectionLayout = qt.QFormLayout(self.step2_2_2_measuredFiducialSelectionCollapsibleButton)
     self.step2_2_2_measuredFiducialSelectionLayout.setContentsMargins(12,4,4,4)
     self.step2_2_2_measuredFiducialSelectionLayout.setSpacing(4)
 
     # Create instructions label
     self.step2_2_2_instructionsLayout = qt.QHBoxLayout(self.step2_2_2_measuredFiducialSelectionCollapsibleButton)
-    self.step2_2_2_measuredFiducialSelectionInfoLabel = qt.QLabel("Select the fiducial points in the gel dosimeter volume in the same order as the CBCT fiducials were selected.")
+    self.step2_2_2_measuredFiducialSelectionInfoLabel = qt.QLabel("Select the fiducial points in the gel dosimeter volume in the same order as the IGRT fiducials were selected.")
     self.step2_2_2_measuredFiducialSelectionInfoLabel.wordWrap = True
     self.step2_2_2_helpLabel = qt.QLabel()
     self.step2_2_2_helpLabel.pixmap = qt.QPixmap(':Icons/Help.png')
@@ -593,66 +1247,85 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step2_2_2_instructionsLayout.addWidget(self.step2_2_2_helpLabel)
     self.step2_2_2_measuredFiducialSelectionLayout.addRow(self.step2_2_2_instructionsLayout)
 
+    # Add volume selector for fiducial placement background
+    self.step2_2_2_backgroundVolumeSelector = slicer.qMRMLNodeComboBox()
+    self.step2_2_2_backgroundVolumeSelector.nodeTypes = ["vtkMRMLScalarVolumeNode"]
+    self.step2_2_2_backgroundVolumeSelector.selectNodeUponCreation = False
+    self.step2_2_2_backgroundVolumeSelector.noneEnabled = False
+    self.step2_2_2_backgroundVolumeSelector.setMRMLScene(slicer.mrmlScene)
+    self.step2_2_2_backgroundVolumeSelector.toolTip = "Select volume to display during fiducial placement"
+    self.step2_2_2_measuredFiducialSelectionLayout.addRow("Display volume:", self.step2_2_2_backgroundVolumeSelector)
+    self.step2_2_2_backgroundVolumeSelector.connect('currentNodeChanged(vtkMRMLNode*)', self.onMeasuredFiducialBackgroundVolumeChanged)
+
     # Measured fiducial selector simple markups widget
     self.step2_2_2_measuredFiducialList = slicer.qSlicerSimpleMarkupsWidget()
     self.step2_2_2_measuredFiducialList.setMRMLScene(slicer.mrmlScene)
     self.step2_2_2_measuredFiducialSelectionLayout.addRow(self.step2_2_2_measuredFiducialList)
 
     # Step 2.2.3: Perform registration
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButton.text = "2.2.3 Perform registration"
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout = qt.QFormLayout(self.step2_2_3_measuredToCbctRegistrationCollapsibleButton)
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout.setSpacing(4)
-    self.step2_2_measuredDoseToCbctRegistrationLayout.addWidget(self.step2_2_3_measuredToCbctRegistrationCollapsibleButton)
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButton = ctk.ctkCollapsibleButton()
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButton.setProperty('collapsedHeight', 4)
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButton.text = "2.2.3 Perform registration"
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout = qt.QFormLayout(self.step2_2_3_measuredToIgrtRegistrationCollapsibleButton)
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout.setContentsMargins(12,4,4,4)
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout.setSpacing(4)
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrameLayout.addWidget(self.step2_2_3_measuredToIgrtRegistrationCollapsibleButton)
 
-    # Registration button - register MEASURED to CBCT with fiducial registration
-    self.step2_2_3_registerMeasuredToCbctButton = qt.QPushButton("Register gel volume to CBCT")
-    self.step2_2_3_registerMeasuredToCbctButton.toolTip = "Perform fiducial registration between measured gel dosimeter volume and CBCT"
-    self.step2_2_3_registerMeasuredToCbctButton.name = "registerMeasuredToCbctButton"
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout.addRow(self.step2_2_3_registerMeasuredToCbctButton)
+    # Registration button - register MEASURED to IGRT volume with fiducial registration
+    self.step2_2_3_registerMeasuredToIgrtButton = qt.QPushButton("Register gel volume to IGRT volume")
+    self.step2_2_3_registerMeasuredToIgrtButton.toolTip = "Perform fiducial registration between measured gel dosimeter volume and IGRT volume"
+    self.step2_2_3_registerMeasuredToIgrtButton.name = "registerMeasuredToIgrtButton"
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout.addRow(self.step2_2_3_registerMeasuredToIgrtButton)
 
     # Fiducial error label
-    self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel = qt.QLabel('[Not yet performed]')
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout.addRow('Fiducial registration error: ', self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel)
+    self.step2_2_3_measuredToIgrtFiducialRegistrationErrorLabel = qt.QLabel('[Not yet performed]')
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout.addRow('Fiducial registration error: ', self.step2_2_3_measuredToIgrtFiducialRegistrationErrorLabel)
 
     # Add empty row
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout.addRow(' ', None)
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout.addRow(' ', None)
 
     # Note label about fiducial error
     self.step2_2_3_NoteLabel = qt.QLabel("Note: Typical registration error is < 3mm")
-    self.step2_2_3_measuredToCbctRegistrationCollapsibleButtonLayout.addRow(self.step2_2_3_NoteLabel)
+    self.step2_2_3_measuredToIgrtRegistrationCollapsibleButtonLayout.addRow(self.step2_2_3_NoteLabel)
 
     # Add substeps in button groups
     self.step2_2_registrationCollapsibleButtonGroup = qt.QButtonGroup()
-    self.step2_2_registrationCollapsibleButtonGroup.addButton(self.step2_1_planCtToCbctRegistrationCollapsibleButton)
-    self.step2_2_registrationCollapsibleButtonGroup.addButton(self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton)
+    self.step2_2_registrationCollapsibleButtonGroup.addButton(self.step2_1_planningToIGRTRegistrationCollapsibleButton)
+    self.step2_2_registrationCollapsibleButtonGroup.addButton(self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton)
 
-    self.step2_2_measuredToCbctRegistrationCollapsibleButtonGroup = qt.QButtonGroup()
-    self.step2_2_measuredToCbctRegistrationCollapsibleButtonGroup.addButton(self.step2_2_1_cbctFiducialSelectionCollapsibleButton)
-    self.step2_2_measuredToCbctRegistrationCollapsibleButtonGroup.addButton(self.step2_2_2_measuredFiducialSelectionCollapsibleButton)
-    self.step2_2_measuredToCbctRegistrationCollapsibleButtonGroup.addButton(self.step2_2_3_measuredToCbctRegistrationCollapsibleButton)
+    self.step2_2_measuredToIgrtRegistrationCollapsibleButtonGroup = qt.QButtonGroup()
+    self.step2_2_measuredToIgrtRegistrationCollapsibleButtonGroup.addButton(self.step2_2_1_igrtFiducialSelectionCollapsibleButton)
+    self.step2_2_measuredToIgrtRegistrationCollapsibleButtonGroup.addButton(self.step2_2_2_measuredFiducialSelectionCollapsibleButton)
+    self.step2_2_measuredToIgrtRegistrationCollapsibleButtonGroup.addButton(self.step2_2_3_measuredToIgrtRegistrationCollapsibleButton)
+
+    self.step2_2_measuredDoseToIgrtRegistrationLayout.addWidget(self.step2_2_landmarkMeasuredToIgrtRegistrationFrame)
+
+    # Landmark registration by default
+    self.step2_2_registrationTypeLandmarkRadioButton.setChecked(True)
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrame.setVisible(False)
 
     # Make sure first panels appear when steps are first opened (done before connections to avoid
     # executing those steps, which are only needed when actually switching there during the workflow)
-    self.step2_1_1_cbctFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
-    self.step2_2_1_cbctFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
-    self.step2_1_planCtToCbctRegistrationCollapsibleButton.setProperty('collapsed', False)
+    self.step2_1_1_igrtFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
+    self.step2_2_1_igrtFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButton.setProperty('collapsed', False)
 
     # Connections
     self.step2_registrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_RegistrationCollapsed)
-    self.step2_1_registrationTypeAutomaticRadioButton.connect('toggled(bool)', self.onAutomaticPlanCtToCbctRegistrationToggled)
-    self.step2_1_registerPlanCtToCbctButton.connect('clicked()', self.onPlanCtToCbctAutomaticRegistration)
+    self.step2_1_registrationTypeAutomaticRadioButton.connect('toggled(bool)', self.onAutomaticPlanningToIGRTRegistrationToggled)
+    self.step2_1_registerPlanningToIGRTButton.connect('clicked()', self.onPlanningToIGRTAutomaticRegistration)
     self.step2_1_translationSliders.connect('valuesChanged()', self.step2_1_rotationSliders.resetUnactiveSliders)
-    self.step2_1_planCtToCbctRegistrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_1_PlanCtToCbctRegistrationSelected)
-    self.step2_1_1_cbctFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_1_1_CbctFiducialCollectionSelected)
-    self.step2_1_2_planCtFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_1_2_PlanCtFiducialCollectionSelected)
-    self.step2_1_3_registerPlanCtToCbctButton.connect('clicked()', self.onPlanCtToCbctLandmarkRegistration)
-    self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_2_MeasuredDoseToCbctRegistrationSelected)
-    self.step2_2_1_cbctFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_2_1_CbctFiducialCollectionSelected)
+    self.step2_1_planningToIGRTRegistrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_1_PlanningToIGRTRegistrationSelected)
+    self.step2_1_1_igrtFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_1_1_IGRTFiducialCollectionSelected)
+    self.step2_1_2_planningFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_1_2_PlanningFiducialCollectionSelected)
+    self.step2_1_3_registerPlanningToIGRTButton.connect('clicked()', self.onPlanningToIGRTLandmarkRegistration)
+    self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_2_MeasuredDoseToIGRTRegistrationSelected)
+    self.step2_2_registrationTypeAutomaticRadioButton.connect('toggled(bool)', self.onAutomaticMeasuredToIgrtRegistrationToggled)
+    self.step2_2_registerMeasuredToIgrtAutomaticButton.connect('clicked()', self.onMeasuredToIgrtAutomaticRegistration)
+    self.step2_2_translationSliders.connect('valuesChanged()', self.step2_2_rotationSliders.resetUnactiveSliders)
+    self.step2_2_1_igrtFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_2_1_IGRTFiducialCollectionSelected)
     self.step2_2_2_measuredFiducialSelectionCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep2_2_2_MeasuredFiducialCollectionSelected)
-    self.step2_2_3_registerMeasuredToCbctButton.connect('clicked()', self.onMeasuredToCbctRegistration)
+    self.step2_2_3_registerMeasuredToIgrtButton.connect('clicked()', self.onMeasuredToIgrtRegistration)
 
   #------------------------------------------------------------------------------
   def setup_step3_DoseCalibration(self):
@@ -694,11 +1367,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
     # Averaging radius
     self.step3_1_radiusMmFromCentrePixelLineEdit = qt.QLineEdit()
-    self.step3_1_radiusMmFromCentrePixelLineEdit.toolTip = "Radius of the cylinder that is extracted around central axis to get optical attenuation values per depth"
+    self.step3_1_radiusMmFromCentrePixelLineEdit.toolTip = "Radius of the cylinder that is extracted around central axis to get ΔR1 or ΔR2 values per depth"
     self.step3_1_calibrationRoutineLayout.addRow('Averaging radius (mm): ', self.step3_1_radiusMmFromCentrePixelLineEdit)
-
-    # Custom line sampling option
-    self.step3_1_calibrationRoutineLayout.addRow(' ', None)  # Empty row
+    self.step3_1_calibrationRoutineLayout.addRow(' ', None)
     
     # Checkbox to enable custom line sampling
     self.step3_1_useCustomLineSampling = qt.QCheckBox()
@@ -717,6 +1388,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_calibrationRulerSelector.setMRMLScene(slicer.mrmlScene)
     self.step3_1_calibrationRulerSelector.setToolTip('Select ruler line for calibration sampling')
     self.step3_1_calibrationRulerSelector.enabled = False
+    self.step3_1_calibrationRulerSelector.setProperty('baseName', 'CalibrationLine')
     self.step3_1_calibrationRoutineLayout.addRow('  Calibration ruler: ', self.step3_1_calibrationRulerSelector)
     
     # Sampling radius
@@ -730,9 +1402,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_lineSamplingRadiusSpinBox.enabled = False
     self.step3_1_calibrationRoutineLayout.addRow('  Sampling radius: ', self.step3_1_lineSamplingRadiusSpinBox)
 
-    # Align Pdd data and CALIBRATION data based on region of interest selected
+    # Align Pdd data and Calibration data based on region of interest selected
     self.step3_1_alignCalibrationCurvesButton = qt.QPushButton("Plot reference and gel PDD data")
-    self.step3_1_alignCalibrationCurvesButton.toolTip = "Align PDD data optical attenuation values with experimental optical attenuation values (coming from calibration gel volume)"
+    self.step3_1_alignCalibrationCurvesButton.toolTip = "Align PDD data with experimentaL ΔR1 or ΔR2 values (coming from calibration gel volume)"
     self.step3_1_calibrationRoutineLayout.addRow(self.step3_1_alignCalibrationCurvesButton)
 
     # Controls to adjust alignment
@@ -748,7 +1420,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_yScaleLabel = qt.QLabel('  Y scale:')
     self.step3_1_yScaleSpinBox = qt.QDoubleSpinBox()
     self.step3_1_yScaleSpinBox.decimals = 3
-    self.step3_1_yScaleSpinBox.singleStep = 0.01
+    self.step3_1_yScaleSpinBox.singleStep = 0.1
     self.step3_1_yScaleSpinBox.value = 1
     self.step3_1_yScaleSpinBox.minimum = 0
     self.step3_1_yScaleSpinBox.maximum = 100000
@@ -781,20 +1453,20 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     # Empty row
     self.step3_1_calibrationRoutineLayout.addRow(' ', None)
 
-    # Show chart of optical attenuation vs. dose curve and remove selected points
-    self.step3_1_oaVsDoseCurveControlsLayout = qt.QHBoxLayout(self.step3_1_calibrationRoutineCollapsibleButton)
-    self.step3_1_showOpticalAttenuationVsDoseCurveButton = qt.QPushButton("Plot optical attenuation vs dose")
-    self.step3_1_showOpticalAttenuationVsDoseCurveButton.toolTip = "Show optical attenuation vs. Dose curve to determine the order of polynomial to fit."
-    self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton = qt.QPushButton("Optional: Remove selected points from plot")
-    self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton.toolTip = "Removes the selected points (typically outliers) from the OA vs Dose curve so that they are omitted during polynomial fitting.\nTo select points, hold down the right mouse button and draw a selection rectangle in the chart view."
+    # Show chart of ΔR1 or ΔR2 vs. dose curve and remove selected points
+    self.step3_1_deltaRVsDoseCurveControlsLayout = qt.QHBoxLayout(self.step3_1_calibrationRoutineCollapsibleButton)
+    self.step3_1_showDeltaRVsDoseCurveButton = qt.QPushButton("Plot ΔR1 or ΔR2 vs dose")
+    self.step3_1_showDeltaRVsDoseCurveButton.toolTip = "Show ΔR1 or ΔR2 vs. Dose curve to determine the order of polynomial to fit."
+    self.step3_1_removeSelectedPointsFromDeltaRVsDoseCurveButton = qt.QPushButton("Optional: Remove selected points from plot")
+    self.step3_1_removeSelectedPointsFromDeltaRVsDoseCurveButton.toolTip = "Removes the selected points (typically outliers) from the ΔR1 or ΔR2 vs Dose curve so that they are omitted during polynomial fitting.\nTo select points, hold down the right mouse button and draw a selection rectangle in the chart view."
     self.step3_1_helpLabel = qt.QLabel()
     self.step3_1_helpLabel.pixmap = qt.QPixmap(':Icons/Help.png')
     self.step3_1_helpLabel.maximumWidth = 24
     self.step3_1_helpLabel.toolTip = "To select points in the plot, hold down the right mouse button and draw a selection rectangle in the chart view."
-    self.step3_1_oaVsDoseCurveControlsLayout.addWidget(self.step3_1_showOpticalAttenuationVsDoseCurveButton)
-    self.step3_1_oaVsDoseCurveControlsLayout.addWidget(self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton)
-    self.step3_1_oaVsDoseCurveControlsLayout.addWidget(self.step3_1_helpLabel)
-    self.step3_1_calibrationRoutineLayout.addRow(self.step3_1_oaVsDoseCurveControlsLayout)
+    self.step3_1_deltaRVsDoseCurveControlsLayout.addWidget(self.step3_1_showDeltaRVsDoseCurveButton)
+    self.step3_1_deltaRVsDoseCurveControlsLayout.addWidget(self.step3_1_removeSelectedPointsFromDeltaRVsDoseCurveButton)
+    self.step3_1_deltaRVsDoseCurveControlsLayout.addWidget(self.step3_1_helpLabel)
+    self.step3_1_calibrationRoutineLayout.addRow(self.step3_1_deltaRVsDoseCurveControlsLayout)
 
     # Add empty row
     self.step3_1_calibrationRoutineLayout.addRow(' ', None)
@@ -807,9 +1479,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_selectOrderOfPolynomialFitButton.addItem('4')
     self.step3_1_calibrationRoutineLayout.addRow('Fit with what order polynomial function:', self.step3_1_selectOrderOfPolynomialFitButton)
 
-    self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton = qt.QPushButton("Fit data and determine calibration function")
-    self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton.toolTip = "Finds the line of best fit based on the data and polynomial order provided"
-    self.step3_1_calibrationRoutineLayout.addRow(self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton)
+    self.step3_1_fitPolynomialToDeltaRVsDoseCurveButton = qt.QPushButton("Fit data and determine calibration function")
+    self.step3_1_fitPolynomialToDeltaRVsDoseCurveButton.toolTip = "Finds the line of best fit based on the data and polynomial order provided"
+    self.step3_1_calibrationRoutineLayout.addRow(self.step3_1_fitPolynomialToDeltaRVsDoseCurveButton)
 
     self.step3_1_fitPolynomialResidualsLabel = qt.QLabel()
     self.step3_1_calibrationRoutineLayout.addRow(self.step3_1_fitPolynomialResidualsLabel)
@@ -835,23 +1507,23 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_2_calibrationFunctionOrder0LineEdit = qt.QLineEdit()
     self.step3_2_calibrationFunctionOrder0LineEdit.maximumWidth = 64
     self.step3_2_calibrationFunctionOrderLineEdits.append(self.step3_2_calibrationFunctionOrder0LineEdit)
-    self.step3_2_calibrationFunctionOrder0Label = qt.QLabel(' OA<span style=" font-size:8pt; vertical-align:super;">0</span> + ')
+    self.step3_2_calibrationFunctionOrder0Label = qt.QLabel(' ΔR1 or ΔR2<span style=" font-size:8pt; vertical-align:super;">0</span> + ')
     self.step3_2_calibrationFunctionOrder1LineEdit = qt.QLineEdit()
     self.step3_2_calibrationFunctionOrder1LineEdit.maximumWidth = 64
     self.step3_2_calibrationFunctionOrderLineEdits.append(self.step3_2_calibrationFunctionOrder1LineEdit)
-    self.step3_2_calibrationFunctionOrder1Label = qt.QLabel(' OA<span style=" font-size:8pt; vertical-align:super;">1</span> + ')
+    self.step3_2_calibrationFunctionOrder1Label = qt.QLabel(' ΔR1 or ΔR2<span style=" font-size:8pt; vertical-align:super;">1</span> + ')
     self.step3_2_calibrationFunctionOrder2LineEdit = qt.QLineEdit()
     self.step3_2_calibrationFunctionOrder2LineEdit.maximumWidth = 64
     self.step3_2_calibrationFunctionOrderLineEdits.append(self.step3_2_calibrationFunctionOrder2LineEdit)
-    self.step3_2_calibrationFunctionOrder2Label = qt.QLabel(' OA<span style=" font-size:8pt; vertical-align:super;">2</span> + ')
+    self.step3_2_calibrationFunctionOrder2Label = qt.QLabel(' ΔR1 or ΔR2<span style=" font-size:8pt; vertical-align:super;">2</span> + ')
     self.step3_2_calibrationFunctionOrder3LineEdit = qt.QLineEdit()
     self.step3_2_calibrationFunctionOrder3LineEdit.maximumWidth = 64
     self.step3_2_calibrationFunctionOrderLineEdits.append(self.step3_2_calibrationFunctionOrder3LineEdit)
-    self.step3_2_calibrationFunctionOrder3Label = qt.QLabel(' OA<span style=" font-size:8pt; vertical-align:super;">3</span> + ')
+    self.step3_2_calibrationFunctionOrder3Label = qt.QLabel(' ΔR1 or ΔR2<span style=" font-size:8pt; vertical-align:super;">3</span> + ')
     self.step3_2_calibrationFunctionOrder4LineEdit = qt.QLineEdit()
     self.step3_2_calibrationFunctionOrder4LineEdit.maximumWidth = 64
     self.step3_2_calibrationFunctionOrderLineEdits.append(self.step3_2_calibrationFunctionOrder4LineEdit)
-    self.step3_2_calibrationFunctionOrder4Label = qt.QLabel(' OA<span style=" font-size:8pt; vertical-align:super;">4</span>')
+    self.step3_2_calibrationFunctionOrder4Label = qt.QLabel(' ΔR1 or ΔR2<span style=" font-size:8pt; vertical-align:super;">4</span>')
     self.step3_2_calibrationFunctionLayout.addWidget(self.step3_2_doseLabel,0,0)
     self.step3_2_calibrationFunctionLayout.addWidget(self.step3_2_calibrationFunctionOrder0LineEdit,0,1)
     self.step3_2_calibrationFunctionLayout.addWidget(self.step3_2_calibrationFunctionOrder0Label,0,2)
@@ -867,7 +1539,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
     # Export calibration polynomial coefficients to CSV
     self.step3_2_exportCalibrationToCSV = qt.QPushButton("Optional: Export calibration points to a CSV file")
-    self.step3_2_exportCalibrationToCSV.toolTip = "Export optical attenuation to dose calibration plot points (if points were removed, those are not exported).\nIf polynomial fitting has been done, export the coefficients as well."
+    self.step3_2_exportCalibrationToCSV.toolTip = "Export ΔR1 or ΔR2 to dose calibration plot points (if points were removed, those are not exported).\nIf polynomial fitting has been done, export the coefficients as well."
     self.step3_2_applyCalibrationLayout.addRow(self.step3_2_exportCalibrationToCSV)
 
     # Empty row
@@ -891,6 +1563,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_calibrationRoutineCollapsibleButton.setProperty('collapsed', False)
 
     # Connections
+    self.step3_doseCalibrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3_1_CalibrationRoutineSelected)
     self.step3_1_pddLoadDataButton.connect('clicked()', self.onLoadPddDataRead)
     self.step3_1_alignCalibrationCurvesButton.connect('clicked()', self.onAlignCalibrationCurves)
     self.step3_1_xTranslationSpinBox.connect('valueChanged(double)', self.onAdjustAlignmentValueChanged)
@@ -900,10 +1573,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_lineSamplingRadiusSpinBox.connect('valueChanged(double)', self.onLineSamplingRadiusChanged)
     self.step3_1_computeDoseFromPddButton.connect('clicked()', self.onComputeDoseFromPdd)
     self.step3_1_calibrationRoutineCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3_1_CalibrationRoutineSelected)
-    self.step3_doseCalibrationCollapsibleButton.connect('contentsCollapsed(bool)', self.onStep3_DoseCalibrationSelected)
-    self.step3_1_showOpticalAttenuationVsDoseCurveButton.connect('clicked()', self.onShowOpticalAttenuationVsDoseCurve)
-    self.step3_1_removeSelectedPointsFromOpticalAttenuationVsDoseCurveButton.connect('clicked()', self.onRemoveSelectedPointsFromOpticalAttenuationVsDoseCurve)
-    self.step3_1_fitPolynomialToOpticalAttenuationVsDoseCurveButton.connect('clicked()', self.onFitPolynomialToOpticalAttenuationVsDoseCurve)
+    self.step3_1_showDeltaRVsDoseCurveButton.connect('clicked()', self.onShowDeltaRVsDoseCurve)
+    self.step3_1_removeSelectedPointsFromDeltaRVsDoseCurveButton.connect('clicked()', self.onRemoveSelectedPointsFromDeltaRVsDoseCurve)
+    self.step3_1_fitPolynomialToDeltaRVsDoseCurveButton.connect('clicked()', self.onFitPolynomialToDeltaRVsDoseCurve)
     self.step3_2_exportCalibrationToCSV.connect('clicked()', self.onExportCalibration)
     self.step3_2_applyCalibrationButton.connect('clicked()', self.onApplyCalibration)
 
@@ -1100,6 +1772,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.stepT1_inputRulerSelector.showChildNodeTypes = False
     self.stepT1_inputRulerSelector.setMRMLScene( slicer.mrmlScene )
     self.stepT1_inputRulerSelector.setToolTip( "Pick the ruler that defines the sampling line." )
+    self.stepT1_inputRulerSelector.setProperty('baseName', 'LineProfile')
     self.stepT1_lineProfileCollapsibleButtonLayout.addRow("Input ruler: ", self.stepT1_inputRulerSelector)
 
     # Line sampling resolution in mm
@@ -1141,13 +1814,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.stepT1_inputRulerSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onSelectLineProfileParameters)
     self.stepT1_exportLineProfilesToCSV.connect('clicked()', self.onExportLineProfiles)
 
-  def onExportLineProfiles(self):
-    if hasattr(self, "lineProfileData") and self.lineProfileData is not None:
-      self.logic.exportLineProfileToCSV(self.lineProfileData)
-    else:
-      slicer.util.delayDisplay("No line profile available to export.")
-
-
   #
   # -----------------------
   # Event handler functions
@@ -1171,21 +1837,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   def onClinicalModeSelect(self, toggled):
-    if self.step0_clinicalModeRadioButton.isChecked() == True:
+    if self.step0_clinicalModeRadioButton.isChecked():
       self.mode = 'Clinical'
-
-      # Step 3.1. Label for plot visibility
-      self.step3_1_showOpticalAttenuationVsDoseCurveButton.setText("Plot optical attenuation vs dose")
-      self.step3_1_showOpticalAttenuationVsDoseCurveButton.toolTip = "Show optical attenuation vs. Dose curve to determine the order of polynomial to fit."
-
-  #------------------------------------------------------------------------------
-  def onPreclinicalModeSelect(self, toggled):
-    if self.step0_preclinicalModeRadioButton.isChecked() == True:
+    elif self.step0_preclinicalModeRadioButton.isChecked():
       self.mode = 'Preclinical'
-
-      # Step 3.1. Label for plot visibility
-      self.step3_1_showOpticalAttenuationVsDoseCurveButton.setText("Plot R1 vs dose")
-      self.step3_1_showOpticalAttenuationVsDoseCurveButton.toolTip = "Show Relaxation Rates vs. Dose curve to determine the order of polynomial to fit."
+    
+    self.step3_1_showDeltaRVsDoseCurveButton.setText("Plot ΔR1 or ΔR2 vs dose")
+    self.step3_1_showDeltaRVsDoseCurveButton.toolTip = "Show ΔR1 or ΔR2 vs. Dose curve to determine the order of polynomial to fit."
 
   #------------------------------------------------------------------------------
   def onLoadNonDicomData(self):
@@ -1193,55 +1851,51 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   # Step 1
-
   #------------------------------------------------------------------------------
   def onStep1_LoadDataCollapsed(self, collapsed):
     if collapsed == True:
       # Save selections to member variables when switching away from load data step
-      self.planCtVolumeNode = self.planCtSelector.currentNode()
+      self.planningVolumeNode = self.planningSelector.currentNode()
       self.planDoseVolumeNode = self.planDoseSelector.currentNode()
-      self.cbctVolumeNode = self.cbctSelector.currentNode()
+      self.igrtVolumeNode = self.igrtSelector.currentNode()
       self.planStructuresNode = self.planStructuresSelector.currentNode()
-      self.measuredVolumeNode = self.measuredVolumeSelector.currentNode()
-      self.calibrationVolumeNode = self.calibrationVolumeSelector.currentNode()
 
   #------------------------------------------------------------------------------
   # Step 2
-
   #------------------------------------------------------------------------------
   def onStep2_RegistrationCollapsed(self, collapsed):
     # Make sure the functions handling entering the fiducial selection panels are called when entering the outer panel
     if collapsed == False:
-      if self.step2_1_planCtToCbctRegistrationCollapsibleButton.collapsed == False:
-        self.onStep2_1_PlanCtToCbctRegistrationSelected(False)
-      elif self.step2_2_measuredDoseToCbctRegistrationCollapsibleButton.collapsed == False:
-        self.onStep2_2_MeasuredDoseToCbctRegistrationSelected(False)
+      if self.step2_1_planningToIGRTRegistrationCollapsibleButton.collapsed == False:
+        self.onStep2_1_PlanningToIGRTRegistrationSelected(False)
+      elif self.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton.collapsed == False:
+        self.onStep2_2_MeasuredDoseToIGRTRegistrationSelected(False)
 
       # Make sure current registration type is properly set up
-      self.onAutomaticPlanCtToCbctRegistrationToggled(self.step2_1_registrationTypeAutomaticRadioButton.checked)
+      self.onAutomaticPlanningToIGRTRegistrationToggled(self.step2_1_registrationTypeAutomaticRadioButton.checked)
 
   #------------------------------------------------------------------------------
-  def onStep2_1_PlanCtToCbctRegistrationSelected(self, collapsed):
+  def onStep2_1_PlanningToIGRTRegistrationSelected(self, collapsed):
     # Make sure the functions handling entering the fiducial selection panels are called when entering the outer panel
     if collapsed == False:
-      if self.step2_1_1_cbctFiducialSelectionCollapsibleButton.collapsed == False:
-        self.onStep2_1_1_CbctFiducialCollectionSelected(False)
-      elif self.step2_1_2_planCtFiducialSelectionCollapsibleButton.collapsed == False:
-        self.onStep2_1_2_PlanCtFiducialCollectionSelected(False)
+      if self.step2_1_1_igrtFiducialSelectionCollapsibleButton.collapsed == False:
+        self.onStep2_1_1_IGRTFiducialCollectionSelected(False)
+      elif self.step2_1_2_planningFiducialSelectionCollapsibleButton.collapsed == False:
+        self.onStep2_1_2_PlanningFiducialCollectionSelected(False)
 
         # Make sure the fiducials used for this step are visible
-        if self.cbctMarkupsFiducialNode_WithPlan and self.cbctMarkupsFiducialNode_WithPlan.GetDisplayNode():
-          self.cbctMarkupsFiducialNode_WithPlan.GetDisplayNode().SetVisibility(1)
-        if self.planCtMarkupsFiducialNode and self.planCtMarkupsFiducialNode.GetDisplayNode():
-          self.planCtMarkupsFiducialNode.GetDisplayNode().SetVisibility(1)
+        if self.igrtMarkupsFiducialNode_WithPlan and self.igrtMarkupsFiducialNode_WithPlan.GetDisplayNode():
+          self.igrtMarkupsFiducialNode_WithPlan.GetDisplayNode().SetVisibility(1)
+        if self.planningMarkupsFiducialNode and self.planningMarkupsFiducialNode.GetDisplayNode():
+          self.planningMarkupsFiducialNode.GetDisplayNode().SetVisibility(1)
         # Hide the fiducials from step 2.2 in case the user switches back
-        if self.cbctMarkupsFiducialNode_WithMeasured and self.cbctMarkupsFiducialNode_WithMeasured.GetDisplayNode():
-          self.cbctMarkupsFiducialNode_WithMeasured.GetDisplayNode().SetVisibility(0)
+        if self.igrtMarkupsFiducialNode_WithMeasured and self.igrtMarkupsFiducialNode_WithMeasured.GetDisplayNode():
+          self.igrtMarkupsFiducialNode_WithMeasured.GetDisplayNode().SetVisibility(0)
         if self.measuredMarkupsFiducialNode and self.measuredMarkupsFiducialNode.GetDisplayNode():
           self.measuredMarkupsFiducialNode.GetDisplayNode().SetVisibility(0)
 
   #------------------------------------------------------------------------------
-  def onStep2_1_1_CbctFiducialCollectionSelected(self, collapsed):
+  def onStep2_1_1_IGRTFiducialCollectionSelected(self, collapsed):
     appLogic = slicer.app.applicationLogic()
     selectionNode = appLogic.GetSelectionNode()
     interactionNode = appLogic.GetInteractionNode()
@@ -1253,16 +1907,16 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       # Turn on persistent fiducial placement mode
       interactionNode.SwitchToPersistentPlaceMode()
 
-      # Select CBCT fiducials node
-      self.step2_1_1_cbctFiducialList.setCurrentNode(self.cbctMarkupsFiducialNode_WithPlan)
-      self.step2_1_1_cbctFiducialList.activate()
+      # Select IGRT fiducials node
+      self.step2_1_1_igrtFiducialList.setCurrentNode(self.igrtMarkupsFiducialNode_WithPlan)
+      self.step2_1_1_igrtFiducialList.activate()
 
-      # Automatically show CBCT volume (show nothing if not present)
-      if self.cbctVolumeNode is not None:
-        selectionNode.SetActiveVolumeID(self.cbctVolumeNode.GetID())
+      # Automatically show IGRT volume (show nothing if not present)
+      if self.igrtVolumeNode is not None:
+        selectionNode.SetActiveVolumeID(self.igrtVolumeNode.GetID())
       else:
         selectionNode.SetActiveVolumeID(None)
-        slicer.util.errorDisplay('CBCT volume not selected!\nPlease return to first step and make the assignment')
+        slicer.util.errorDisplay('IGRT volume not selected!\nPlease return to first step and make the assignment')
       selectionNode.SetSecondaryVolumeID(None)
       appLogic.PropagateVolumeSelection()
     else:
@@ -1270,7 +1924,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       interactionNode.SwitchToViewTransformMode()
 
   #------------------------------------------------------------------------------
-  def onStep2_1_2_PlanCtFiducialCollectionSelected(self, collapsed):
+  def onStep2_1_2_PlanningFiducialCollectionSelected(self, collapsed):
     appLogic = slicer.app.applicationLogic()
     selectionNode = appLogic.GetSelectionNode()
     interactionNode = appLogic.GetInteractionNode()
@@ -1279,16 +1933,16 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       # Turn on persistent fiducial placement mode
       interactionNode.SwitchToPersistentPlaceMode()
 
-      # Select PLANCT fiducials node
-      self.step2_1_2_planCtFiducialList.setCurrentNode(self.planCtMarkupsFiducialNode)
-      self.step2_1_2_planCtFiducialList.activate()
+      # Select planning fiducials node
+      self.step2_1_2_planningFiducialList.setCurrentNode(self.planningMarkupsFiducialNode)
+      self.step2_1_2_planningFiducialList.activate()
 
-      # Automatically show PLANCT volume (show nothing if not present)
-      if self.planCtVolumeNode is not None:
-        selectionNode.SetActiveVolumeID(self.planCtVolumeNode.GetID())
+      # Automatically show planning volume (show nothing if not present)
+      if self.planningVolumeNode is not None:
+        selectionNode.SetActiveVolumeID(self.planningVolumeNode.GetID())
       else:
         selectionNode.SetActiveVolumeID(None)
-        slicer.util.errorDisplay('Planning CT volume not selected!\nPlease return to first step and make the assignment')
+        slicer.util.errorDisplay('Planning volume not selected!\nPlease return to first step and make the assignment')
       selectionNode.SetSecondaryVolumeID(None)
       appLogic.PropagateVolumeSelection()
     else:
@@ -1296,27 +1950,27 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       interactionNode.SwitchToViewTransformMode()
 
   #------------------------------------------------------------------------------
-  def onStep2_2_MeasuredDoseToCbctRegistrationSelected(self, collapsed):
+  def onStep2_2_MeasuredDoseToIGRTRegistrationSelected(self, collapsed):
     # Make sure the functions handling entering the fiducial selection panels are called when entering the outer panel
     if collapsed == False:
-      if self.step2_2_1_cbctFiducialSelectionCollapsibleButton.collapsed == False:
-        self.onStep2_2_1_CbctFiducialCollectionSelected(False)
+      if self.step2_2_1_igrtFiducialSelectionCollapsibleButton.collapsed == False:
+        self.onStep2_2_1_IGRTFiducialCollectionSelected(False)
       elif self.step2_2_2_measuredFiducialSelectionCollapsibleButton.collapsed == False:
         self.onStep2_2_2_MeasuredFiducialCollectionSelected(False)
 
         # Make sure the fiducials used for this step are visible
-        if self.cbctMarkupsFiducialNode_WithMeasured and self.cbctMarkupsFiducialNode_WithMeasured.GetDisplayNode():
-          self.cbctMarkupsFiducialNode_WithMeasured.GetDisplayNode().SetVisibility(1)
+        if self.igrtMarkupsFiducialNode_WithMeasured and self.igrtMarkupsFiducialNode_WithMeasured.GetDisplayNode():
+          self.igrtMarkupsFiducialNode_WithMeasured.GetDisplayNode().SetVisibility(1)
         if self.measuredMarkupsFiducialNode and self.measuredMarkupsFiducialNode.GetDisplayNode():
           self.measuredMarkupsFiducialNode.GetDisplayNode().SetVisibility(1)
         # Hide the fiducials from step 2.1 in case landmark mode was used
-        if self.cbctMarkupsFiducialNode_WithPlan and self.cbctMarkupsFiducialNode_WithPlan.GetDisplayNode():
-          self.cbctMarkupsFiducialNode_WithPlan.GetDisplayNode().SetVisibility(0)
-        if self.planCtMarkupsFiducialNode and self.planCtMarkupsFiducialNode.GetDisplayNode():
-          self.planCtMarkupsFiducialNode.GetDisplayNode().SetVisibility(0)
+        if self.igrtMarkupsFiducialNode_WithPlan and self.igrtMarkupsFiducialNode_WithPlan.GetDisplayNode():
+          self.igrtMarkupsFiducialNode_WithPlan.GetDisplayNode().SetVisibility(0)
+        if self.planningMarkupsFiducialNode and self.planningMarkupsFiducialNode.GetDisplayNode():
+          self.planningMarkupsFiducialNode.GetDisplayNode().SetVisibility(0)
 
   #------------------------------------------------------------------------------
-  def onStep2_2_1_CbctFiducialCollectionSelected(self, collapsed):
+  def onStep2_2_1_IGRTFiducialCollectionSelected(self, collapsed):
     appLogic = slicer.app.applicationLogic()
     selectionNode = appLogic.GetSelectionNode()
     interactionNode = appLogic.GetInteractionNode()
@@ -1325,16 +1979,16 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       # Turn on persistent fiducial placement mode
       interactionNode.SwitchToPersistentPlaceMode()
 
-      # Select CBCT fiducials node
-      self.step2_2_1_cbctFiducialList.setCurrentNode(self.cbctMarkupsFiducialNode_WithMeasured)
-      self.step2_2_1_cbctFiducialList.activate()
+      # Select IGRT fiducials node
+      self.step2_2_1_igrtFiducialList.setCurrentNode(self.igrtMarkupsFiducialNode_WithMeasured)
+      self.step2_2_1_igrtFiducialList.activate()
 
-      # Automatically show CBCT volume (show nothing if not present)
-      if self.cbctVolumeNode is not None:
-        selectionNode.SetActiveVolumeID(self.cbctVolumeNode.GetID())
+      # Automatically show IGRT volume (show nothing if not present)
+      if self.igrtVolumeNode is not None:
+        selectionNode.SetActiveVolumeID(self.igrtVolumeNode.GetID())
       else:
         selectionNode.SetActiveVolumeID(None)
-        slicer.util.errorDisplay('CBCT volume not selected!\nPlease return to first step and make the assignment')
+        slicer.util.errorDisplay('IGRT volume not selected!\nPlease return to first step and make the assignment')
       selectionNode.SetSecondaryVolumeID(None)
       appLogic.PropagateVolumeSelection()
     else:
@@ -1343,34 +1997,48 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   def onStep2_2_2_MeasuredFiducialCollectionSelected(self, collapsed):
-    appLogic = slicer.app.applicationLogic()
-    selectionNode = appLogic.GetSelectionNode()
-    interactionNode = appLogic.GetInteractionNode()
+      appLogic = slicer.app.applicationLogic()
+      selectionNode = appLogic.GetSelectionNode()
+      interactionNode = appLogic.GetInteractionNode()
 
-    if collapsed == False:
-      # Turn on persistent fiducial placement mode
-      interactionNode.SwitchToPersistentPlaceMode()
+      if collapsed == False:
+        # Turn on persistent fiducial placement mode
+        interactionNode.SwitchToPersistentPlaceMode()
 
-      # Select MEASURED fiducials node
-      self.step2_2_2_measuredFiducialList.setCurrentNode(self.measuredMarkupsFiducialNode)
-      self.step2_2_2_measuredFiducialList.activate()
+        # Select MEASURED fiducials node
+        self.step2_2_2_measuredFiducialList.setCurrentNode(self.measuredMarkupsFiducialNode)
+        self.step2_2_2_measuredFiducialList.activate()
 
-      # Automatically show MEASURED volume (show nothing if not present)
-      if self.measuredVolumeNode is not None:
-        selectionNode.SetActiveVolumeID(self.measuredVolumeNode.GetID())
+        # Default to DeltaR map if available, otherwise fall back to measuredVolumeNode
+        deltaRNode = slicer.mrmlScene.GetFirstNodeByName("DeltaR_Map")
+        defaultVolume = deltaRNode if deltaRNode is not None else self.measuredVolumeNode
+
+        if defaultVolume is not None:
+          self.step2_2_2_backgroundVolumeSelector.setCurrentNode(defaultVolume)
+          selectionNode.SetActiveVolumeID(defaultVolume.GetID())
+        else:
+          selectionNode.SetActiveVolumeID(None)
+          slicer.util.errorDisplay('No volume found! Please complete Step 1 first.')
+        selectionNode.SetSecondaryVolumeID(None)
+        appLogic.PropagateVolumeSelection()
       else:
-        selectionNode.SetActiveVolumeID(None)
-        slicer.util.errorDisplay('Gel dosimeter volume not selected!\nPlease return to first step and make the assignment')
-      selectionNode.SetSecondaryVolumeID(None)
-      appLogic.PropagateVolumeSelection()
-    else:
-      # Turn off fiducial place mode
-      interactionNode.SwitchToViewTransformMode()
+        # Turn off fiducial place mode
+        interactionNode.SwitchToViewTransformMode()
 
   #------------------------------------------------------------------------------
-  def onAutomaticPlanCtToCbctRegistrationToggled(self, automaticSelected):
-    self.step2_1_planCtToCbctRegistrationFrame.setVisible(automaticSelected)
-    self.step2_1_landmarkPlanCtToCbctRegistrationFrame.setVisible(not automaticSelected)
+  def onMeasuredFiducialBackgroundVolumeChanged(self, node):
+    if node is None:
+      return
+    appLogic = slicer.app.applicationLogic()
+    selectionNode = appLogic.GetSelectionNode()
+    selectionNode.SetActiveVolumeID(node.GetID())
+    selectionNode.SetSecondaryVolumeID(None)
+    appLogic.PropagateVolumeSelection()
+
+  #------------------------------------------------------------------------------
+  def onAutomaticPlanningToIGRTRegistrationToggled(self, automaticSelected):
+    self.step2_1_planningToIGRTRegistrationFrame.setVisible(automaticSelected)
+    self.step2_1_landmarkPlanningToIGRTRegistrationFrame.setVisible(not automaticSelected)
 
     if automaticSelected:
       # Turn off fiducial place mode
@@ -1380,21 +2048,34 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       interactionNode.SwitchToViewTransformMode()
     else:
       # Make sure landmark mode is set up (fiducial placement mode, shown volumes)
-      self.step2_1_1_cbctFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
-      self.onStep2_1_1_CbctFiducialCollectionSelected(False)
+      self.step2_1_1_igrtFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
+      self.onStep2_1_1_IGRTFiducialCollectionSelected(False)
+
+  #------------------------------------------------------------------------------
+  def onAutomaticMeasuredToIgrtRegistrationToggled(self, automaticSelected):
+    self.step2_2_automaticMeasuredToIgrtRegistrationFrame.setVisible(automaticSelected)
+    self.step2_2_landmarkMeasuredToIgrtRegistrationFrame.setVisible(not automaticSelected)
+
+    if automaticSelected:
+      appLogic = slicer.app.applicationLogic()
+      interactionNode = appLogic.GetInteractionNode()
+      interactionNode.SwitchToViewTransformMode()
+    else:
+      self.step2_2_1_igrtFiducialSelectionCollapsibleButton.setProperty('collapsed', False)
+      self.onStep2_2_1_IGRTFiducialCollectionSelected(False)
 
   #------------------------------------------------------------------------------
   def step2_SetupVisualization(self):
-    # Set color to the CBCT volume
-    if self.cbctVolumeNode is not None:
-      cbctVolumeDisplayNode = self.cbctVolumeNode.GetDisplayNode()
+    # Set color to the IGRT volume
+    if self.igrtVolumeNode is not None:
+      igrtVolumeDisplayNode = self.igrtVolumeNode.GetDisplayNode()
       colorNode = slicer.util.getNode('Green')
-      cbctVolumeDisplayNode.SetAndObserveColorNodeID(colorNode.GetID())
+      igrtVolumeDisplayNode.SetAndObserveColorNodeID(colorNode.GetID())
     else:
-      slicer.util.errorDisplay('CBCT volume not selected!\nPlease return to first step and make the assignment')
+      slicer.util.errorDisplay('IGRT volume not selected!\nPlease return to first step and make the assignment')
       return
 
-    # Set transparency to the CBCT volume
+    # Set transparency to the IGRT volume
     compositeNodes = slicer.util.getNodes("vtkMRMLSliceCompositeNode*")
     for compositeNode in compositeNodes.values():
       compositeNode.SetForegroundOpacity(0.5)
@@ -1411,113 +2092,198 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
         shNode.SetDisplayVisibilityForBranch(planSh, 0)
 
   #------------------------------------------------------------------------------
-  def onPlanCtToCbctAutomaticRegistration(self):
-    # Start registration
-    cbctVolumeID = self.cbctVolumeNode.GetID()
-    planCtVolumeID = self.planCtVolumeNode.GetID()
-    planDoseVolumeID = self.planDoseVolumeNode.GetID()
-    cbctToPlanTransformNode = self.logic.registerPlanCtToCbctAutomatic(planCtVolumeID, cbctVolumeID)
-
-    # Apply transform to plan CT and plan dose
-    if cbctToPlanTransformNode is not None:
-      logging.info("Transform successfully returned")
-      qt.QMessageBox.information(None, "Success", "PlanCT to CBCT registration completed successfully.")
-
-      # Apply transform to plan structures
-      if self.planStructuresNode:
-        self.planStructuresNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
-
-      # Show the two volumes for visual evaluation of the registration
-      appLogic = slicer.app.applicationLogic()
-      selectionNode = appLogic.GetSelectionNode()
-      selectionNode.SetActiveVolumeID(planCtVolumeID)
-      selectionNode.SetSecondaryVolumeID(cbctVolumeID)
-      appLogic.PropagateVolumeSelection()
-
-      # Setup visualization for easy review of registration result
-      self.step2_SetupVisualization()
-
-      # Set transforms to slider widgets
-      self.step2_1_translationSliders.setMRMLTransformNode(cbctToPlanTransformNode)
-      self.step2_1_rotationSliders.setMRMLTransformNode(cbctToPlanTransformNode)
-
-      # Change single step size to 0.5mm in the translation controls
-      sliders = slicer.util.findChildren(widget=self.step2_1_translationSliders, className='qMRMLLinearTransformSlider')
-      for slider in sliders:
-        slider.singleStep = 0.5
-
-    else:
-      logging.error("Registration failed — no transform returned")
-      qt.QMessageBox.warning(None, "Registration Failed", "PlanCT to CBCT registration did not complete successfully.")
-
-    return cbctToPlanTransformNode
-
-  #------------------------------------------------------------------------------
-  def onPlanCtToCbctLandmarkRegistration(self):
-    cbctToPlanTransformNode, errorRms = self.logic.registerPlanCtToCbctLandmark(self.planCtMarkupsFiducialNode.GetID(), self.cbctMarkupsFiducialNode_WithPlan.GetID())
-
-    # Show registration error on GUI
-    if errorRms:
-      self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText(f"{float(errorRms):.6f} mm")
-    else:
-      self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText("Registration failed")
+  def onPlanningToIGRTAutomaticRegistration(self):
+    # Check required volumes are assigned
+    if self.igrtVolumeNode is None:
+      slicer.util.errorDisplay('IGRT volume not selected!\nPlease return to first step and make the assignment')
+      return
+    if self.planningVolumeNode is None:
+      slicer.util.errorDisplay('Planning volume not selected!\nPlease return to first step and make the assignment')
+      return
+    if self.planDoseVolumeNode is None:
+      slicer.util.errorDisplay('Plan dose volume not selected!\nPlease return to first step and make the assignment')
       return
 
-    # self.step2_1_3_planCtToCbctFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
+    # Start registration
+    igrtVolumeID = self.igrtVolumeNode.GetID()
+    planningVolumeID = self.planningVolumeNode.GetID()
+    planDoseVolumeID = self.planDoseVolumeNode.GetID()
+    igrtToPlanningTransformNode = self.logic.registerPlanningToIGRTAutomatic(planningVolumeID, igrtVolumeID)
 
-    # Apply transform to plan CT and plan dose
-    self.planCtVolumeNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
-    if self.planCtVolumeNode != self.planDoseVolumeNode:
-      self.planDoseVolumeNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+    # Apply transform to planning volume and plan dose
+    self.planningVolumeNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
+    if planningVolumeID != planDoseVolumeID:
+        self.planDoseVolumeNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
     else:
-      logging.warning('The selected nodes are the same for plan CT and plan dose')
+        logging.warning('The selected nodes are the same for planning volume and plan dose')
+
+    # Check if registration succeeded
+    if igrtToPlanningTransformNode is not None:
+        qt.QMessageBox.information(None, "Success", "Planning volume to IGRT volume registration completed successfully.")
+    else:
+        qt.QMessageBox.warning(None, "Registration Failed", "Planning volume to IGRT volume registration did not complete successfully.")
 
     # Apply transform to plan structures
     if self.planStructuresNode:
-      self.planStructuresNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+      self.planStructuresNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
 
-    # Show both volumes in the 2D views
+    # Show the two volumes for visual evaluation of the registration
     appLogic = slicer.app.applicationLogic()
     selectionNode = appLogic.GetSelectionNode()
-    selectionNode.SetActiveVolumeID(self.planCtVolumeNode.GetID())
-    selectionNode.SetSecondaryVolumeID(self.cbctVolumeNode.GetID())
+    selectionNode.SetActiveVolumeID(planningVolumeID)
+    selectionNode.SetSecondaryVolumeID(igrtVolumeID)
     appLogic.PropagateVolumeSelection()
 
-    return cbctToPlanTransformNode
+    # Setup visualization for easy review of registration result
+    self.step2_SetupVisualization()
+
+    # Set transforms to slider widgets
+    self.step2_1_translationSliders.setMRMLTransformNode(igrtToPlanningTransformNode)
+    self.step2_1_rotationSliders.setMRMLTransformNode(igrtToPlanningTransformNode)
+
+    # Change single step size to 0.5mm in the translation controls
+    sliders = slicer.util.findChildren(widget=self.step2_1_translationSliders, className='qMRMLLinearTransformSlider')
+    for slider in sliders:
+      slider.singleStep = 0.5
+
+    return igrtToPlanningTransformNode
 
   #------------------------------------------------------------------------------
-
-  def onMeasuredToCbctRegistration(self):
-    errorRms = self.logic.registerMeasuredToCbct(self.measuredMarkupsFiducialNode.GetID(), self.cbctMarkupsFiducialNode_WithMeasured.GetID())
+  def onPlanningToIGRTLandmarkRegistration(self):
+    # Ensure nodes are assigned
+    if self.planningVolumeNode is None:
+        self.planningVolumeNode = self.planningSelector.currentNode()
+    if self.planDoseVolumeNode is None:
+        self.planDoseVolumeNode = self.planDoseSelector.currentNode()
+    if self.planningVolumeNode is None:
+        qt.QMessageBox.warning(None, 'Warning', 'No planning volume selected. Please return to step 1.')
+        return
+    igrtToPlanningTransformNode, errorRms = self.logic.registerPlanningToIGRTLandmark(self.planningMarkupsFiducialNode.GetID(), self.igrtMarkupsFiducialNode_WithPlan.GetID())
 
     # Show registration error on GUI
     if errorRms:
-      self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText(f"{float(errorRms):.6f} mm")
+      self.step2_1_3_planningToIGRTFiducialRegistrationErrorLabel.setText(f"{float(errorRms):.6f} mm")
     else:
-      self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText("Registration failed")
+      self.step2_1_3_planningToIGRTFiducialRegistrationErrorLabel.setText("Registration failed")
       return
 
-    #self.step2_2_3_measuredToCbctFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
+    # self.step2_1_3_planningToIGRTFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
 
-    # Apply transform to MEASURED volume
-    cbctToMeasuredTransformNode = slicer.util.getNode(self.logic.cbctToMeasuredTransformName)
-    self.measuredVolumeNode.SetAndObserveTransformNodeID(cbctToMeasuredTransformNode.GetID())
+    # Apply transform to planning volume and plan dose
+    self.planningVolumeNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
+    if self.planningVolumeNode != self.planDoseVolumeNode:
+      self.planDoseVolumeNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
+    else:
+      logging.warning('The selected nodes are the same for planning volume and plan dose')
+
+    # Apply transform to plan structures
+    if self.planStructuresNode:
+      self.planStructuresNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
 
     # Show both volumes in the 2D views
     appLogic = slicer.app.applicationLogic()
     selectionNode = appLogic.GetSelectionNode()
-    selectionNode.SetActiveVolumeID(self.cbctVolumeNode.GetID())
-    selectionNode.SetSecondaryVolumeID(self.measuredVolumeNode.GetID())
+    selectionNode.SetActiveVolumeID(self.planningVolumeNode.GetID())
+    selectionNode.SetSecondaryVolumeID(self.igrtVolumeNode.GetID())
     appLogic.PropagateVolumeSelection()
-    
-    qt.QMessageBox.information(None, "Done", "Register MEASURED to CBCT using fiducial registration finished.")
 
-    return cbctToMeasuredTransformNode
-  
+    return igrtToPlanningTransformNode
+
+  #------------------------------------------------------------------------------
+  def onMeasuredToIgrtRegistration(self):
+    errorRms = self.logic.registerMeasuredToIGRT(self.measuredMarkupsFiducialNode.GetID(), self.igrtMarkupsFiducialNode_WithMeasured.GetID())
+
+    # Show registration error on GUI
+    if errorRms:
+      self.step2_2_3_measuredToIgrtFiducialRegistrationErrorLabel.setText(f"{float(errorRms):.6f} mm")
+    else:
+      self.step2_2_3_measuredToIgrtFiducialRegistrationErrorLabel.setText("Registration failed")
+      return
+
+    #self.step2_2_3_measuredToIgrtFiducialRegistrationErrorLabel.setText(str(errorRms) + ' mm')
+
+    # Apply transform to the volume where fiducials were actually placed on, then propagate to DeltaR_Map and measuredVolumeNode for downstream calibration consistency.
+    igrtToMeasuredTransformNode = slicer.util.getNode(self.logic.igrtToMeasuredTransformName)
+
+    fiducialSourceVolume = self.step2_2_2_backgroundVolumeSelector.currentNode()
+    if fiducialSourceVolume is None:
+      if self.step1_2_1_1_useGRECheckBox.isChecked():
+        fiducialSourceVolume = self.step1_2_1_postScanSelector.currentNode()
+      else:
+        fiducialSourceVolume = self.step1_2_1_1_r1PostSelector.currentNode() or self.step1_2_1_postScanSelector.currentNode()
+
+    if fiducialSourceVolume is not None:
+      fiducialSourceVolume.SetAndObserveTransformNodeID(igrtToMeasuredTransformNode.GetID())
+
+    deltaRNode = slicer.mrmlScene.GetFirstNodeByName("DeltaR_Map")
+    if deltaRNode is not None:
+      deltaRNode.SetAndObserveTransformNodeID(igrtToMeasuredTransformNode.GetID())
+    if self.measuredVolumeNode is not None and slicer.mrmlScene.GetNodeByID(self.measuredVolumeNode.GetID()) is not None:
+      self.measuredVolumeNode.SetAndObserveTransformNodeID(igrtToMeasuredTransformNode.GetID())
+
+    appLogic = slicer.app.applicationLogic()
+    selectionNode = appLogic.GetSelectionNode()
+    selectionNode.SetActiveVolumeID(self.igrtVolumeNode.GetID())
+    # deltaRNode = slicer.mrmlScene.GetFirstNodeByName("DeltaR_Map")
+    if deltaRNode is not None:
+      secondaryID = deltaRNode.GetID()
+    elif self.measuredVolumeNode is not None:
+      secondaryID = self.measuredVolumeNode.GetID()
+    else:
+      slicer.util.errorDisplay('No measured volume or DeltaR map found! Please complete Step 1 first.')
+      return
+    selectionNode.SetSecondaryVolumeID(secondaryID)
+    appLogic.PropagateVolumeSelection()
+
+    qt.QMessageBox.information(None, "Done", "Register MEASURED to IGRT volume using fiducial registration finished.")
+
+    return igrtToMeasuredTransformNode
+
+  #------------------------------------------------------------------------------
+  def onMeasuredToIgrtAutomaticRegistration(self):
+    # Check required volumes are assigned
+    if self.measuredVolumeNode is None:
+      slicer.util.errorDisplay('Measured gel volume not selected!\nPlease return to first step and make the assignment')
+      return
+    if self.igrtVolumeNode is None:
+      slicer.util.errorDisplay('IGRT volume not selected!\nPlease return to first step and make the assignment')
+      return
+
+    # Start registration
+    igrtVolumeID = self.igrtVolumeNode.GetID()
+    measuredVolumeID = self.measuredVolumeNode.GetID()
+    igrtToMeasuredTransformNode = self.logic.registerMeasuredToIGRTAutomatic(measuredVolumeID, igrtVolumeID)
+
+    # Apply transform to measured volume
+    self.measuredVolumeNode.SetAndObserveTransformNodeID(igrtToMeasuredTransformNode.GetID())
+
+    # Check if registration succeeded
+    if igrtToMeasuredTransformNode is not None:
+      qt.QMessageBox.information(None, "Success", "Measured gel volume to IGRT volume registration completed successfully.")
+    else:
+      qt.QMessageBox.warning(None, "Registration Failed", "Measured gel volume to IGRT volume registration did not complete successfully.")
+      return
+
+    # Show the two volumes for visual evaluation of the registration
+    appLogic = slicer.app.applicationLogic()
+    selectionNode = appLogic.GetSelectionNode()
+    selectionNode.SetActiveVolumeID(measuredVolumeID)
+    selectionNode.SetSecondaryVolumeID(igrtVolumeID)
+    appLogic.PropagateVolumeSelection()
+
+    # Set transforms to slider widgets
+    self.step2_2_translationSliders.setMRMLTransformNode(igrtToMeasuredTransformNode)
+    self.step2_2_rotationSliders.setMRMLTransformNode(igrtToMeasuredTransformNode)
+
+    # Change single step size to 0.5mm in the translation controls
+    sliders = slicer.util.findChildren(widget=self.step2_2_translationSliders, className='qMRMLLinearTransformSlider')
+    for slider in sliders:
+      slider.singleStep = 0.5
+
+    return igrtToMeasuredTransformNode
 
   #------------------------------------------------------------------------------
   # Step 3
-
   #------------------------------------------------------------------------------
   def onLoadPddDataRead(self):
     fileName = qt.QFileDialog.getOpenFileName(0, 'Open PDD data file', '', 'CSV with COMMA ( *.csv )')
@@ -1529,29 +2295,21 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
         qt.QMessageBox.critical(None, "Error", "PDD loading failed!")
 
   #------------------------------------------------------------------------------
-  def onStep3_DoseCalibrationSelected(self, collapsed):
-    if collapsed == False:
-        self.onStep3_1_CalibrationRoutineSelected(False)
-
-  #------------------------------------------------------------------------------
   def onStep3_1_CalibrationRoutineSelected(self, collapsed):
     if collapsed == False:
-        self.calibrationVolumeNode = self.calibrationVolumeSelector.currentNode()
-        
-        appLogic = slicer.app.applicationLogic()
-        selectionNode = appLogic.GetSelectionNode()
-        if self.calibrationVolumeNode is not None:
-            selectionNode.SetActiveVolumeID(self.calibrationVolumeNode.GetID())
-        else:
-            selectionNode.SetActiveVolumeID(None)
-        selectionNode.SetSecondaryVolumeID(None)
-        appLogic.PropagateVolumeSelection()
+      appLogic = slicer.app.applicationLogic()
+      selectionNode = appLogic.GetSelectionNode()
+      if self.calibrationVolumeNode is not None:
+        selectionNode.SetActiveVolumeID(self.calibrationVolumeNode.GetID())
+      else:
+        selectionNode.SetActiveVolumeID(None)
+      selectionNode.SetSecondaryVolumeID(None)
+      appLogic.PropagateVolumeSelection()
 
-  #------------------------------------------------------------------------------  
+  #------------------------------------------------------------------------------
   def parseCalibrationVolume(self):
     # Check if using custom line sampling
     if self.step3_1_useCustomLineSampling.isChecked():
-        # Validate inputs
         if not self.step3_1_calibrationRulerSelector.currentNode():
             slicer.util.errorDisplay('Please select a ruler for custom line sampling')
             return False
@@ -1563,24 +2321,15 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
         # Use custom line sampling
         rulerNode = self.step3_1_calibrationRulerSelector.currentNode()
         samplingRadius = self.step3_1_lineSamplingRadiusSpinBox.value
-        
-        logging.info(f'Sampling calibration data along ruler: {rulerNode.GetName()} with radius: {samplingRadius}mm')
-        
-        success = self.logic.sampleCalibrationAlongLine(
-            self.calibrationVolumeNode,
-            rulerNode,
-            samplingRadius
-        )
+        success = self.logic.sampleCalibrationAlongLine(self.calibrationVolumeNode, rulerNode, samplingRadius)
         
         if not success:
             slicer.util.errorDisplay('Failed to sample calibration data along line')
             return False
-        
-        logging.info(f'Calibration data sampled: {self.logic.calibrationDataArray.shape[0]} points')
         return True
     
+    # Use original central cylinder method
     else:
-        # Use original central cylinder method
         radiusOfCentreCircleText = self.step3_1_radiusMmFromCentrePixelLineEdit.text
         radiusOfCentreCircleFloat = 0
         if radiusOfCentreCircleText.isnumeric():
@@ -1593,9 +2342,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
             slicer.util.errorDisplay('No calibration volume selected!')
             return False
 
-        success = self.logic.getMeanOpticalAttenuationOfCentralCylinder(
-            self.calibrationVolumeNode.GetID(), radiusOfCentreCircleFloat)
-        if not success:
+        success = self.logic.getMeanDeltaROfCentralCylinder(self.calibrationVolumeNode.GetID(), radiusOfCentreCircleFloat)
+        if success == False:
             slicer.util.errorDisplay('Calibration volume parsing failed!')
         return success
 
@@ -1606,20 +2354,19 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.calibrationCurveChartView.GetRenderer().SetBackground(1,1,1)
     self.calibrationCurveChart = vtk.vtkChartXY()
     self.calibrationCurveChartView.GetScene().AddItem(self.calibrationCurveChart)
-    self.calibrationCurveChartView.GetRenderWindow().SetSize(800, 550)
 
   #------------------------------------------------------------------------------
   def showCalibrationCurves(self):
-    # Create CALIBRATION mean optical attenuation plot
+    # Create calibration mean ΔR1 or ΔR2 plot
     self.calibrationCurveDataTable = vtk.vtkTable()
     calibrationNumberOfRows = self.logic.calibrationDataArray.shape[0]
 
     calibrationDepthArray = vtk.vtkDoubleArray()
     calibrationDepthArray.SetName("Depth (cm)")
     self.calibrationCurveDataTable.AddColumn(calibrationDepthArray)
-    calibrationMeanOpticalAttenuationArray = vtk.vtkDoubleArray()
-    calibrationMeanOpticalAttenuationArray.SetName("Calibration data (mean optical attenuation, cm^-1)")
-    self.calibrationCurveDataTable.AddColumn(calibrationMeanOpticalAttenuationArray)
+    calibrationMeanDeltaRArray = vtk.vtkDoubleArray()
+    calibrationMeanDeltaRArray.SetName("Calibration data (mean ΔR1 or ΔR2, s^-1)")
+    self.calibrationCurveDataTable.AddColumn(calibrationMeanDeltaRArray)
 
     self.calibrationCurveDataTable.SetNumberOfRows(calibrationNumberOfRows)
     for rowIndex in range(calibrationNumberOfRows):
@@ -1627,12 +2374,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.calibrationCurveDataTable.SetValue(rowIndex, 1, self.logic.calibrationDataArray[rowIndex, 1])
       # self.calibrationCurveDataTable.SetValue(rowIndex, 2, self.logic.calibrationDataArray[rowIndex, 2])
 
-    if hasattr(self, 'calibrationMeanOpticalAttenuationLine'):
-      self.calibrationCurveChart.RemovePlotInstance(self.calibrationMeanOpticalAttenuationLine)
-    self.calibrationMeanOpticalAttenuationLine = self.calibrationCurveChart.AddPlot(vtk.vtkChart.LINE)
-    self.calibrationMeanOpticalAttenuationLine.SetInputData(self.calibrationCurveDataTable, 0, 1)
-    self.calibrationMeanOpticalAttenuationLine.SetColor(255, 0, 0, 255)
-    self.calibrationMeanOpticalAttenuationLine.SetWidth(2.0)
+    # Comment out if you don't want to plot the red line
+    if hasattr(self, 'calibrationMeanDeltaRLine'):
+      self.calibrationCurveChart.RemovePlotInstance(self.calibrationMeanDeltaRLine)
+    self.calibrationMeanDeltaRLine = self.calibrationCurveChart.AddPlot(vtk.vtkChart.LINE)
+    self.calibrationMeanDeltaRLine.SetInputData(self.calibrationCurveDataTable, 0, 1)
+    self.calibrationMeanDeltaRLine.SetColor(255, 0, 0, 255)
+    self.calibrationMeanDeltaRLine.SetWidth(2.0)
 
     # Create Pdd plot
     self.pddDataTable = vtk.vtkTable()
@@ -1680,11 +2428,15 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
     # Show chart
     self.calibrationCurveChart.GetAxis(1).SetTitle('Depth (cm) - select region using right mouse button to be considered for calibration')
-    self.calibrationCurveChart.GetAxis(0).SetTitle('Percent Depth Dose / Optical Attenuation')
+    self.calibrationCurveChart.GetAxis(0).SetTitle('Percent Depth Dose / ΔR1 or ΔR2')
     self.calibrationCurveChart.SetShowLegend(True)
     self.calibrationCurveChart.SetTitle('PDD vs Calibration data')
     self.calibrationCurveChartView.GetInteractor().Initialize()
     self.calibrationCurveChartRenderWindow = self.calibrationCurveChartView.GetRenderWindow()
+    self.calibrationCurveChartRenderWindow.SetSize(800,550)
+    # To prevent window size from changing
+    #if not hasattr(self, "_calibrationCurveChartInitialized"):
+      #self._calibrationCurveChartInitialized = True
     self.calibrationCurveChartRenderWindow.SetWindowName('PDD vs Calibration data chart')
     self.calibrationCurveChartRenderWindow.Start()
 
@@ -1694,7 +2446,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       slicer.util.errorDisplay('PDD data not loaded!')
       return False
 
-    # Parse calibration volume (average optical densities along central cylinder)
+    # Parse calibration volume (average ΔR1 or ΔR2 values along central cylinder)
     success = self.parseCalibrationVolume()
     if not success:
       return False
@@ -1744,6 +2496,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       
       # Connect to ruler selector to observe changes
       self.step3_1_calibrationRulerSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCalibrationRulerChanged)
+      
+      # Show calibration volume when enabling custom line sampling
+      self.showCalibrationVolumeIn4Up()
     else:
       # Disconnect observer when disabled
       try:
@@ -1767,17 +2522,45 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     
     # Add observer to new ruler
     if rulerNode:
-      # Observe when the ruler is modified (moved)
-      self.calibrationRulerObserverTag = rulerNode.AddObserver(
-        slicer.vtkMRMLMarkupsNode.PointModifiedEvent, 
-        self.onCalibrationRulerMoved
-      )
+      if rulerNode.GetNumberOfControlPoints() == 0:
+        appLogic = slicer.app.applicationLogic()
+        interactionNode = appLogic.GetInteractionNode()
+        selectionNode = appLogic.GetSelectionNode()
+        selectionNode.SetActivePlaceNodeID(rulerNode.GetID())
+        interactionNode.SetCurrentInteractionMode(interactionNode.Place)
+      
+      # Observe when the ruler is modified
+      self.calibrationRulerObserverTag = rulerNode.AddObserver(slicer.vtkMRMLMarkupsNode.PointModifiedEvent, self.onCalibrationRulerMoved)
       self.previousCalibrationRuler = rulerNode
+      
+      # Show calibration volume in 4-Up view
+      self.showCalibrationVolumeIn4Up()
       
       # Update the plot immediately with the new ruler
       if self.logic.pddDataArray is not None and self.logic.pddDataArray.size > 0:
         self.updateCalibrationWithCustomLine()
-
+  
+  #------------------------------------------------------------------------------
+  def showCalibrationVolumeIn4Up(self):
+    # Display calibration volume in 4-up view
+    calibrationVolume = self.calibrationVolumeNode
+    
+    # Switch to 4-up view
+    layoutManager = slicer.app.layoutManager()
+    layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+    
+    # Set calibration volume as background in all views
+    appLogic = slicer.app.applicationLogic()
+    selectionNode = appLogic.GetSelectionNode()
+    selectionNode.SetActiveVolumeID(calibrationVolume.GetID())
+    appLogic.PropagateVolumeSelection()
+    
+    # Reset field of view in all slice views
+    layoutManager = self.layoutWidget.layoutManager()
+    threeDWidget = layoutManager.threeDWidget(0)
+    if threeDWidget is not None and threeDWidget.threeDView() is not None:
+      threeDWidget.threeDView().resetFocalPoint()
+    
   #------------------------------------------------------------------------------
   def onCalibrationRulerMoved(self, caller, event):
     # Only update if we have PDD data already loaded
@@ -1786,7 +2569,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   def updateCalibrationWithCustomLine(self):
-    # Update the calibration curve using the current ruler position
+  # Update the calibration curve using the current ruler position
     if not self.step3_1_useCustomLineSampling.isChecked():
       return
     
@@ -1795,18 +2578,19 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       return
     
     if rulerNode.GetNumberOfControlPoints() < 2:
-      return
+      return 
+
+    if self.logic.pddDataArray is None or self.logic.pddDataArray.size == 0:
+      return  
+
+    if not hasattr(self, 'calibrationCurveChart'):
+      return 
     
     # Sample along the line
     samplingRadius = self.step3_1_lineSamplingRadiusSpinBox.value
-    success = self.logic.sampleCalibrationAlongLine(
-      self.calibrationVolumeNode,
-      rulerNode,
-      samplingRadius
-    )
+    success = self.logic.sampleCalibrationAlongLine(self.calibrationVolumeNode, rulerNode, samplingRadius)
     
     if success:
-      # Re-align and show curves
       result = self.logic.alignPddToCalibration()
       
       # Update manual controls
@@ -1821,8 +2605,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.step3_1_yTranslationSpinBox.blockSignals(False)
       
       # Update the plot
-      if hasattr(self, 'calibrationCurveChart'):
-        self.showCalibrationCurves()
+      self.showCalibrationCurves()
  
   #------------------------------------------------------------------------------
   def onLineSamplingRadiusChanged(self, value):
@@ -1841,14 +2624,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     # Calculate dose information: calculatedDose = (PddDose * MonitorUnits * RDF) / 10000
     if self.logic.computeDoseForMeasuredData(rdfFloat, monitorUnitsFloat) == False:
       qt.QMessageBox.critical(None, "Error", 'Dose calculation from PDD failed!')
-      # slicer.util.errorDisplay('Dose calculation from PDD failed!')
       return False
 
     qt.QMessageBox.information(None, "Success", "Dose successfully calculated from PDD.")
     return True
 
   #------------------------------------------------------------------------------
-  def onShowOpticalAttenuationVsDoseCurve(self):
+  def onShowDeltaRVsDoseCurve(self):
     # Get selection from PDD vs Calibration chart
     selection = self.pddLine.GetSelection()
     if selection is not None and selection.GetNumberOfTuples() > 0:
@@ -1859,63 +2641,58 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       pddRangeMax = 1000
     logging.info('Selected Pdd range: {0} - {1}'.format(pddRangeMin,pddRangeMax))
 
-    # Create optical attenuation vs dose function
-    self.logic.createOpticalAttenuationVsDoseFunction(pddRangeMin, pddRangeMax)
+    # Create ΔR1 or ΔR2 vs dose function
+    self.logic.createDeltaRVsDoseFunction(pddRangeMin, pddRangeMax)
 
-    self.oaVsDoseChartView = vtk.vtkContextView()
-    self.oaVsDoseChartView.GetRenderer().SetBackground(1,1,1)
-    self.oaVsDoseChart = vtk.vtkChartXY()
-    self.oaVsDoseChartView.GetScene().AddItem(self.oaVsDoseChart)
+    self.deltaRVsDoseChartView = vtk.vtkContextView()
+    self.deltaRVsDoseChartView.GetRenderer().SetBackground(1,1,1)
+    self.deltaRVsDoseChart = vtk.vtkChartXY()
+    self.deltaRVsDoseChartView.GetScene().AddItem(self.deltaRVsDoseChart)
 
-    # Create optical attenuation vs dose plot
-    self.oaVsDoseDataTable = vtk.vtkTable()
-    oaVsDoseNumberOfRows = self.logic.opticalAttenuationVsDoseFunction.shape[0]
+    # Create ΔR1 or ΔR2 vs dose plot
+    self.deltaRVsDoseDataTable = vtk.vtkTable()
+    deltaRVsDoseNumberOfRows = self.logic.deltaRVsDoseFunction.shape[0]
 
-    opticalAttenuationArray = vtk.vtkDoubleArray()
-    opticalAttenuationArray.SetName("Optical attenuation (cm^-1)")
-    self.oaVsDoseDataTable.AddColumn(opticalAttenuationArray)
+    deltaRArray = vtk.vtkDoubleArray()
+    deltaRArray.SetName("ΔR1 or ΔR2 (s^-1)")
+    self.deltaRVsDoseDataTable.AddColumn(deltaRArray)
     doseArray = vtk.vtkDoubleArray()
     doseArray.SetName("Dose (GY)")
-    self.oaVsDoseDataTable.AddColumn(doseArray)
+    self.deltaRVsDoseDataTable.AddColumn(doseArray)
 
-    self.oaVsDoseDataTable.SetNumberOfRows(oaVsDoseNumberOfRows)
-    for rowIndex in range(oaVsDoseNumberOfRows):
-      self.oaVsDoseDataTable.SetValue(rowIndex, 0, self.logic.opticalAttenuationVsDoseFunction[rowIndex, 0])
-      self.oaVsDoseDataTable.SetValue(rowIndex, 1, self.logic.opticalAttenuationVsDoseFunction[rowIndex, 1])
+    self.deltaRVsDoseDataTable.SetNumberOfRows(deltaRVsDoseNumberOfRows)
+    for rowIndex in range(deltaRVsDoseNumberOfRows):
+      self.deltaRVsDoseDataTable.SetValue(rowIndex, 0, self.logic.deltaRVsDoseFunction[rowIndex, 0])
+      self.deltaRVsDoseDataTable.SetValue(rowIndex, 1, self.logic.deltaRVsDoseFunction[rowIndex, 1])
 
-    self.oaVsDoseLinePoint = self.oaVsDoseChart.AddPlot(vtk.vtkChart.POINTS)
-    self.oaVsDoseLinePoint.SetInputData(self.oaVsDoseDataTable, 0, 1)
-    self.oaVsDoseLinePoint.SetColor(0, 0, 255, 255)
-    self.oaVsDoseLinePoint.SetMarkerSize(10)
-    self.oaVsDoseLineInnerPoint = self.oaVsDoseChart.AddPlot(vtk.vtkChart.POINTS)
-    self.oaVsDoseLineInnerPoint.SetInputData(self.oaVsDoseDataTable, 0, 1)
-    self.oaVsDoseLineInnerPoint.SetColor(255, 255, 255, 223)
-    self.oaVsDoseLineInnerPoint.SetMarkerSize(8)
+    self.deltaRVsDoseLinePoint = self.deltaRVsDoseChart.AddPlot(vtk.vtkChart.POINTS)
+    self.deltaRVsDoseLinePoint.SetInputData(self.deltaRVsDoseDataTable, 0, 1)
+    self.deltaRVsDoseLinePoint.SetColor(0, 0, 255, 255)
+    self.deltaRVsDoseLinePoint.SetMarkerSize(10)
+    self.deltaRVsDoseLineInnerPoint = self.deltaRVsDoseChart.AddPlot(vtk.vtkChart.POINTS)
+    self.deltaRVsDoseLineInnerPoint.SetInputData(self.deltaRVsDoseDataTable, 0, 1)
+    self.deltaRVsDoseLineInnerPoint.SetColor(255, 255, 255, 223)
+    self.deltaRVsDoseLineInnerPoint.SetMarkerSize(8)
 
     # Show chart
-    self.oaVsDoseChart.GetAxis(1).SetTitle('Optical attenuation (cm^-1)')
-    self.oaVsDoseChart.GetAxis(0).SetTitle('Dose (GY)')
-    self.oaVsDoseChart.SetTitle('Optical attenuation vs Dose')
-    self.oaVsDoseChartView.GetInteractor().Initialize()
-    self.oaVsDoseChartRenderWindow = self.oaVsDoseChartView.GetRenderWindow()
-    self.oaVsDoseChartRenderWindow.SetSize(800,550)
-    self.oaVsDoseChartRenderWindow.SetWindowName('Optical attenuation vs Dose chart')
-    self.oaVsDoseChartRenderWindow.Start()
+    self.deltaRVsDoseChart.GetAxis(1).SetTitle('ΔR1 or ΔR2 (s^-1)')
+    self.deltaRVsDoseChart.GetAxis(0).SetTitle('Dose (GY)')
+    self.deltaRVsDoseChart.SetTitle('ΔR1 or ΔR2 vs Dose')
+    self.deltaRVsDoseChartView.GetInteractor().Initialize()
+    self.deltaRVsDoseChartRenderWindow = self.deltaRVsDoseChartView.GetRenderWindow()
+    self.deltaRVsDoseChartRenderWindow.SetSize(800,550)
+    self.deltaRVsDoseChartRenderWindow.SetWindowName('Delta R1 or Delta R2 vs Dose chart')
+    self.deltaRVsDoseChartRenderWindow.Start()
 
   #------------------------------------------------------------------------------
-  def onRemoveSelectedPointsFromOpticalAttenuationVsDoseCurve(self):
-    #outlierSelection = self.oaVsDoseLineInnerPoint.GetSelection()
-    #if outlierSelection is None:
-    # outlierSelection = self.oaVsDoseLinePoint.GetSelection()
+  def onRemoveSelectedPointsFromDeltaRVsDoseCurve(self):
     outlierSelection = None
-    if hasattr(self, 'oaVsDoseLineInnerPoint') and self.oaVsDoseLineInnerPoint:
-      outlierSelection = self.oaVsDoseLineInnerPoint.GetSelection()
-    if outlierSelection is None and hasattr(self, 'oaVsDoseLinePoint') and self.oaVsDoseLinePoint:
-      outlierSelection = self.oaVsDoseLinePoint.GetSelection()
-    
+    if hasattr(self, 'deltaRVsDoseLineInnerPoint') and self.deltaRVsDoseLineInnerPoint:
+      outlierSelection = self.deltaRVsDoseLineInnerPoint.GetSelection()
+    if outlierSelection is None and hasattr(self, 'deltaRVsDoseLinePoint') and self.deltaRVsDoseLinePoint:
+      outlierSelection = self.deltaRVsDoseLinePoint.GetSelection()
     if outlierSelection is None:
-      qt.QMessageBox.information(None, "Optical Attenuation vs Dose", 
-                             "Please right-click the points you want to remove on the OA vs. Dose chart.")
+      qt.QMessageBox.information(None, "ΔR1 or ΔR2 vs Dose", "Please right-click the points you want to remove on the ΔR1 or ΔR2 vs. Dose chart.")
       return
     
     if outlierSelection is not None and outlierSelection.GetNumberOfTuples() > 0:
@@ -1927,29 +2704,26 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       outlierIndices.sort()
       outlierIndices.reverse()
       for outlierIndex in outlierIndices:
-        self.oaVsDoseDataTable.RemoveRow(outlierIndex)
-        self.logic.opticalAttenuationVsDoseFunction = numpy.delete(self.logic.opticalAttenuationVsDoseFunction, outlierIndex, 0)
+        self.deltaRVsDoseDataTable.RemoveRow(outlierIndex)
+        self.logic.deltaRVsDoseFunction = numpy.delete(self.logic.deltaRVsDoseFunction, outlierIndex, 0)
 
       # De-select former points
       emptySelectionArray = vtk.vtkIdTypeArray()
-      #self.oaVsDoseLinePoint.SetSelection(emptySelectionArray)
-      # self.oaVsDoseLineInnerPoint.SetSelection(emptySelectionArray)
-      if hasattr(self, 'oaVsDoseLinePoint') and self.oaVsDoseLinePoint:
-        self.oaVsDoseLinePoint.SetSelection(emptySelectionArray)
-      if hasattr(self, 'oaVsDoseLineInnerPoint') and self.oaVsDoseLineInnerPoint:
-        self.oaVsDoseLineInnerPoint.SetSelection(emptySelectionArray)
-
+      if hasattr(self, 'deltaRVsDoseLinePoint') and self.deltaRVsDoseLinePoint:
+        self.deltaRVsDoseLinePoint.SetSelection(emptySelectionArray)
+      if hasattr(self, 'deltaRVsDoseLineInnerPoint') and self.deltaRVsDoseLineInnerPoint:
+        self.deltaRVsDoseLineInnerPoint.SetSelection(emptySelectionArray)
       if hasattr(self, 'polynomialLine') and self.polynomialLine is not None:
         self.polynomialLine.SetSelection(emptySelectionArray)
       # Update chart view
-      self.oaVsDoseDataTable.Modified()
-      self.oaVsDoseChartView.Render()
+      self.deltaRVsDoseDataTable.Modified()
+      self.deltaRVsDoseChartView.Render()
 
   #------------------------------------------------------------------------------
-  def onFitPolynomialToOpticalAttenuationVsDoseCurve(self):
+  def onFitPolynomialToDeltaRVsDoseCurve(self):
     orderSelectionComboboxCurrentIndex = self.step3_1_selectOrderOfPolynomialFitButton.currentIndex
     maxOrder = int(self.step3_1_selectOrderOfPolynomialFitButton.itemText(orderSelectionComboboxCurrentIndex))
-    residuals = self.logic.fitCurveToOpticalAttenuationVsDoseFunctionArray(maxOrder)
+    residuals = self.logic.fitCurveToDeltaRVsDoseFunctionArray(maxOrder)
     p = self.logic.calibrationPolynomialCoefficients
 
     # Clear line edits
@@ -1963,11 +2737,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_fitPolynomialResidualsLabel.text = "Residuals of the least-squares fit of the polynomial: {0:.3f}".format(residuals[0])
 
     # Compute points to display for the fitted polynomial
-    oaVsDoseNumberOfRows = self.logic.opticalAttenuationVsDoseFunction.shape[0]
-    minOA = self.logic.opticalAttenuationVsDoseFunction[0, 0]
-    maxOA = self.logic.opticalAttenuationVsDoseFunction[oaVsDoseNumberOfRows-1, 0]
-    minPolynomial = minOA - (maxOA-minOA)*0.2
-    maxPolynomial = maxOA + (maxOA-minOA)*0.2
+    deltaRVsDoseNumberOfRows = self.logic.deltaRVsDoseFunction.shape[0]
+    minDeltaR = self.logic.deltaRVsDoseFunction[0, 0]
+    maxDeltaR = self.logic.deltaRVsDoseFunction[deltaRVsDoseNumberOfRows-1, 0]
+    minPolynomial = minDeltaR - (maxDeltaR-minDeltaR)*0.2
+    maxPolynomial = maxDeltaR + (maxDeltaR-minDeltaR)*0.2
 
     # Create table to display polynomial
     self.polynomialTable = vtk.vtkTable()
@@ -1977,8 +2751,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     polynomialYArray = vtk.vtkDoubleArray()
     polynomialYArray.SetName("Y")
     self.polynomialTable.AddColumn(polynomialYArray)
-    # The displayed polynomial is 4 times as dense as the OA VS dose curve
-    polynomialNumberOfRows = oaVsDoseNumberOfRows * 4
+    # The displayed polynomial is 4 times as dense as the ΔR1 or ΔR2 VS dose curve
+    polynomialNumberOfRows = deltaRVsDoseNumberOfRows * 4
     self.polynomialTable.SetNumberOfRows(polynomialNumberOfRows)
     for rowIndex in range(polynomialNumberOfRows):
       x = minPolynomial + (maxPolynomial-minPolynomial)*rowIndex/polynomialNumberOfRows
@@ -1990,9 +2764,9 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.polynomialTable.SetValue(rowIndex, 1, y)
 
     if hasattr(self, 'polynomialLine') and self.polynomialLine is not None:
-      self.oaVsDoseChart.RemovePlotInstance(self.polynomialLine)
+      self.deltaRVsDoseChart.RemovePlotInstance(self.polynomialLine)
 
-    self.polynomialLine = self.oaVsDoseChart.AddPlot(vtk.vtkChart.LINE)
+    self.polynomialLine = self.deltaRVsDoseChart.AddPlot(vtk.vtkChart.LINE)
     self.polynomialLine.SetInputData(self.polynomialTable, 0, 1)
     self.polynomialLine.SetColor(192, 0, 0, 255)
     self.polynomialLine.SetWidth(2)
@@ -2050,11 +2824,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     appLogic.PropagateVolumeSelection()
 
     # Set window/level options for the calibrated dose
-    if self.logic.opticalAttenuationVsDoseFunction is not None:
+    if self.logic.deltaRVsDoseFunction is not None:
       calibratedVolumeDisplayNode = self.calibratedMeasuredVolumeNode.GetDisplayNode()
-      oaVsDoseNumberOfRows = self.logic.opticalAttenuationVsDoseFunction.shape[0]
-      minDose = self.logic.opticalAttenuationVsDoseFunction[0, 1]
-      maxDose = self.logic.opticalAttenuationVsDoseFunction[oaVsDoseNumberOfRows-1, 1]
+      deltaRVsDoseNumberOfRows = self.logic.deltaRVsDoseFunction.shape[0]
+      minDose = self.logic.deltaRVsDoseFunction[0, 1]
+      maxDose = self.logic.deltaRVsDoseFunction[deltaRVsDoseNumberOfRows-1, 1]
       minWindowLevel = minDose - (maxDose-minDose)*0.2
       maxWindowLevel = maxDose + (maxDose-minDose)*0.2
       calibratedVolumeDisplayNode.AutoWindowLevelOff()
@@ -2066,7 +2840,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   # Step 4
-
   #------------------------------------------------------------------------------
   def refreshDoseComparisonInfoLabel(self):
     if self.planDoseVolumeNode is None:
@@ -2079,16 +2852,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.step4_doseComparisonEvaluatedVolumeLabel.text = self.calibratedMeasuredVolumeNode.GetName()
 
   #------------------------------------------------------------------------------
-  def onStep4_MaskSegmentationSelectionChanged(self, node):
-    self.maskSegmentationNode = node
-  
-  def onStep4_MaskSegmentSelectionChanged(self, segmentID):
-    self.maskSegmentID = segmentID
-    if self.maskSegmentationNode and self.maskSegmentID:
-        labelmap = self.logic.getMaskBinaryLabelmap(self.maskSegmentationNode, self.maskSegmentID)
-        if labelmap:
-            logging.info(f"Mask segment {segmentID} binary labelmap ready")
-
   def onStep4_DoseComparisonSelected(self, collapsed):
     # Initialize mask segmentation selector to select plan structures
     self.step4_maskSegmentationSelector.setCurrentNode(self.planStructuresNode)
@@ -2103,36 +2866,36 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.layoutWidget.layoutManager().threeDWidget(0).threeDView().resetFocalPoint()
 
   #------------------------------------------------------------------------------
-  #def onStep4_MaskSegmentationSelectionChanged(self, node):
+  def onStep4_MaskSegmentationSelectionChanged(self, node):
     # Hide previously selected mask segmentation
-    #if self.maskSegmentationNode is not None:
-     # self.maskSegmentationNode.GetDisplayNode().SetVisibility(0)
+    if self.maskSegmentationNode is not None:
+      self.maskSegmentationNode.GetDisplayNode().SetVisibility(0)
     # Set new mask segmentation
-    #self.maskSegmentationNode = node
-    #self.onStep4_MaskSegmentSelectionChanged(self.step4_maskSegmentationSelector.currentSegmentID())
+    self.maskSegmentationNode = node
+    self.onStep4_MaskSegmentSelectionChanged(self.step4_maskSegmentationSelector.currentSegmentID())
     # Show new mask segmentation
-    #if self.maskSegmentationNode is not None:
-      #self.maskSegmentationNode.GetDisplayNode().SetVisibility(1)
-
+    if self.maskSegmentationNode is not None:
+      self.maskSegmentationNode.GetDisplayNode().SetVisibility(1)
+  
   #------------------------------------------------------------------------------
-  #def onStep4_MaskSegmentSelectionChanged(self, segmentID):
-    #if self.maskSegmentationNode is None:
-     # return
+  def onStep4_MaskSegmentSelectionChanged(self, segmentID):
+    if self.maskSegmentationNode is None:
+      return
     # Set new mask segment
-    #self.maskSegmentID = segmentID
+    self.maskSegmentID = segmentID
 
     # Hide all other segments
-    #import vtkSegmentationCorePython as vtkSegmentationCore
-    #segmentIDs = vtk.vtkStringArray()
-    #self.maskSegmentationNode.GetSegmentation().GetSegmentIDs(segmentIDs)
-    #for segmentIndex in range(0,segmentIDs.GetNumberOfValues()):
-    #  currentSegmentID = segmentIDs.GetValue(segmentIndex)
-     # self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(currentSegmentID, False)
+    import vtkSegmentationCorePython as vtkSegmentationCore
+    segmentIDs = vtk.vtkStringArray()
+    self.maskSegmentationNode.GetSegmentation().GetSegmentIDs(segmentIDs)
+    for segmentIndex in range(0,segmentIDs.GetNumberOfValues()):
+      currentSegmentID = segmentIDs.GetValue(segmentIndex)
+      self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(currentSegmentID, False)
     # Show only selected segment, make it semi-transparent
-    #if self.maskSegmentID is not None and self.maskSegmentID != '':
-     # self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(self.maskSegmentID, True)
-      #self.maskSegmentationNode.GetDisplayNode().SetSegmentOpacity3D(self.maskSegmentID, 0.5)
-
+    if self.maskSegmentID is not None and self.maskSegmentID != '':
+      self.maskSegmentationNode.GetDisplayNode().SetSegmentVisibility(self.maskSegmentID, True)
+      self.maskSegmentationNode.GetDisplayNode().SetSegmentOpacity3D(self.maskSegmentID, 0.5)
+  
   #------------------------------------------------------------------------------
   def onUseMaximumDoseRadioButtonToggled(self, toggled):
     self.step4_1_referenceDoseCustomValueCGySpinBox.setEnabled(not toggled)
@@ -2153,6 +2916,13 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       slicer.mrmlScene.AddNode(self.gammaParameterSetNode)
       self.gammaParameterSetNode.SetAndObserveReferenceDoseVolumeNode(self.planDoseVolumeNode)
       self.gammaParameterSetNode.SetAndObserveCompareDoseVolumeNode(self.calibratedMeasuredVolumeNode)
+      # Ensure binary labelmap representation exists for gamma mask
+      if self.maskSegmentationNode is not None and self.maskSegmentID:
+          segmentation = self.maskSegmentationNode.GetSegmentation()
+          if not segmentation.ContainsRepresentation(
+                  slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()):
+              segmentation.CreateRepresentation(
+                  slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName())
       self.gammaParameterSetNode.SetAndObserveMaskSegmentationNode(self.maskSegmentationNode)
       if self.maskSegmentID is not None and self.maskSegmentID != '':
         self.gammaParameterSetNode.SetMaskSegmentID(self.maskSegmentID)
@@ -2180,11 +2950,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
       # Perform gamma comparison
       qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-      # Ensure both dose volumes are in the same physical grid
-      #for v in [self.planDoseVolumeNode, self.calibratedMeasuredVolumeNode]:
-        #if v and v.GetParentTransformNode():
-          #slicer.vtkSlicerTransformLogic().hardenTransform(v)
-
       errorMessage = doseComparisonLogic.ComputeGammaDoseDifference(self.gammaParameterSetNode)
 
       self.gammaProgressDialog.hide()
@@ -2223,36 +2988,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       sliceLogicRed.EndSliceNodeInteraction()
 
       # Set gamma window/level
-      #maximumGamma = self.step4_1_maximumGammaSpinBox.value
-      #gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
-      #gammaDisplayNode.AutoWindowLevelOff()
-      #gammaDisplayNode.SetWindowLevel(maximumGamma/2, maximumGamma/2)
-     # gammaDisplayNode.ApplyThresholdOn()
-      #gammaDisplayNode.AutoThresholdOff()
-     # gammaDisplayNode.SetLowerThreshold(0.001)
-
-      # Set gamma window/level
-      #gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
-     # if gammaDisplayNode is None:
-    #    self.gammaVolumeNode.CreateDefaultDisplayNodes()
-        #gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
-        
-      # Let Slicer automatically adjust window/level so values are visible
-      #gammaDisplayNode.AutoWindowLevelOn()
-      
-      # Do NOT apply a threshold — show all voxels, even near zero
-      #gammaDisplayNode.ApplyThresholdOff()
-      # Optional: explicitly set to 0 if needed
-      #gammaDisplayNode.SetLowerThreshold(0.0)
-
-      # Set gamma window/level (match legacy behavior)
       maximumGamma = self.step4_1_maximumGammaSpinBox.value
-
       gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
       if gammaDisplayNode is None:
         self.gammaVolumeNode.CreateDefaultDisplayNodes()
         gammaDisplayNode = self.gammaVolumeNode.GetDisplayNode()
-
       gammaDisplayNode.AutoWindowLevelOff()
       gammaDisplayNode.SetWindowLevel(maximumGamma/2, maximumGamma/2)
       gammaDisplayNode.ApplyThresholdOn()
@@ -2287,7 +3027,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
   #------------------------------------------------------------------------------
   # Step T1
-
   #------------------------------------------------------------------------------
   def onStepT1_LineProfileSelected(self, collapsed):
     appLogic = slicer.app.applicationLogic()
@@ -2347,6 +3086,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
         self.gammaPlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
       self.lineProfileLogic.outputPlotSeriesNodes[self.gammaVolumeNode.GetID()] = self.gammaPlotSeriesNode
 
+    # Line profile plot
     self.lineProfileLogic.update()
     if getattr(self, 'planDosePlotSeriesNode', None):
         self.planDosePlotSeriesNode.SetName("Planned Dose")
@@ -2364,29 +3104,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
     # Build exportable [Distance(mm), Value] rows from the table
     table = self.lineProfileTableNode.GetTable()
-    distanceCol = table.GetColumnByName("Distance") or next(
-      (table.GetColumn(ci) for ci in range(table.GetNumberOfColumns())
-       if "distance" in (table.GetColumnName(ci) or "").lower()),
-       None)
-
     if not table or table.GetNumberOfRows() == 0:
-      self.lineProfileData = None
-      return
-    
-    # Pick the first intensity column (one per input volume):
-    intensityColName = None
-    for ci in range(table.GetNumberOfColumns()):
-      name = table.GetColumnName(ci)
-      if name.startswith("Intensity"):
-        intensityColName = name
-        break
-
-    if intensityColName is not None and distanceCol is not None:
-      intensityCol = table.GetColumnByName(intensityColName)
-      n = table.GetNumberOfRows()
-      self.lineProfileData = [[distanceCol.GetValue(i), intensityCol.GetValue(i)] for i in range(n)]
-    else:
-      self.lineProfileData = None
+        self.lineProfileData = None
+        return
+    n = table.GetNumberOfRows()
+    self.lineProfileData = [[table.GetValue(i, 0), table.GetValue(i, 1)] for i in range(n)]
 
   #------------------------------------------------------------------------------
   def onLegendVisibilityToggled(self, on):
@@ -2403,6 +3125,823 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.stepT1_createLineProfileButton.enabled = self.planDoseVolumeNode and self.measuredVolumeNode and self.stepT1_inputRulerSelector.currentNode()
 
   #------------------------------------------------------------------------------
+  def onExportLineProfiles(self):
+    if hasattr(self, "lineProfileData") and self.lineProfileData is not None:
+      self.logic.exportLineProfileToCSV(self.lineProfileData)
+    else:
+      slicer.util.delayDisplay("No line profile available to export.")
+
+  #------------------------------------------------------------------------------
+  # STEP 1.2.1
+  #------------------------------------------------------------------------------
+  def onPreScanSelected(self, node):
+    # Enable Delta R workflow when pre-irradiation volume is selected
+    if node:
+      self.step1_2_1_1_step2_registrationButton.visible = True
+      self.step1_2_1_1_step2_registrationButton.enabled = True
+      self.step1_2_1_1_step2_registrationButton.collapsed = False
+      self.step1_2_1_1_step3_denoisingButton.visible = True
+      self.step1_2_1_1_step4_computeButton.visible = True
+    else:
+      for btn in [self.step1_2_1_1_step2_registrationButton,
+                  self.step1_2_1_1_step3_denoisingButton,
+                  self.step1_2_1_1_step4_computeButton]:
+        btn.enabled = True
+        btn.collapsed = True
+        btn.visible = False
+      
+  #------------------------------------------------------------------------------
+  def onPostScanSelected(self, node):
+    # Auto-populate measured volume when post-irradiation volume is selected
+    if node:
+      # Set post-irradiation volume as the default measured volume
+      self.measuredVolumeNode = node
+
+  #------------------------------------------------------------------------------
+  def onStep1_2_Collapsed(self, collapsed):
+    # Auto-expand 1.2.1
+    if not collapsed:
+      self.step1_2_1_measuredGelCollapsibleButton.collapsed = False 
+
+  #------------------------------------------------------------------------------
+  def onRegisterPrePost(self):
+    # Register post- to pre-irradiation volume using BRAINS
+    preScanNode = self.step1_2_1_preScanSelector.currentNode()
+    postScanNode = self.step1_2_1_postScanSelector.currentNode()
+    
+    if not preScanNode or not postScanNode:
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre and post-irradiation volumes')
+      return
+    
+    try:
+      # Create transform node
+      transformNode = slicer.mrmlScene.GetFirstNodeByName("PreToPostTransform")
+      # Reuse existing transform node if present, otherwise create one
+      if transformNode is None:
+          transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "PreToPostTransform")
+      
+      # Set up BRAINS registration parameters
+      parameters = {
+        "fixedVolume": preScanNode.GetID(),
+        "movingVolume": postScanNode.GetID(),
+        "linearTransform": transformNode.GetID(),
+        "samplingPercentage": 0.02,
+        "initializeTransformMode": "useMomentsAlign",
+        "useRigid": True
+      }
+      
+      # Run BRAINS registration
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      progressDialog = qt.QProgressDialog("Performing registration. This may take several seconds.", "OK", 0, 0)
+      progressDialog.setModal(True)
+      progressDialog.setMinimumDuration(0)
+      progressDialog.show()
+      slicer.app.processEvents()
+      
+      cliNode = slicer.cli.run(slicer.modules.brainsfit, None, parameters, wait_for_completion=True)
+      
+      if cliNode.GetStatus() & cliNode.Completed:
+        # Create output node for registered post volume
+        outputName = postScanNode.GetName() + "_registered"
+        outputNode = slicer.mrmlScene.GetFirstNodeByName(outputName)
+        if outputNode is None:
+          outputNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", outputName)
+
+        resampleParameters = {
+          "inputVolume": postScanNode.GetID(),
+          "referenceVolume": preScanNode.GetID(),
+          "outputVolume": outputNode.GetID(),
+          "pixelType": "float",
+          "warpTransform": transformNode.GetID(),
+          "interpolationMode": "Linear"
+        }
+        
+        cliNode2 = slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters, wait_for_completion=True)
+        
+        progressDialog.close()
+        qt.QApplication.restoreOverrideCursor()
+        
+        if cliNode2.GetStatus() & cliNode2.Completed:
+          self.registeredPostNode = outputNode
+          self.transformNode = transformNode
+          
+          # Enable Steps 3 and 4
+          self.step1_2_1_1_step3_denoisingButton.enabled = True
+          self.step1_2_1_1_step4_computeButton.enabled = True
+          self.step1_2_1_1_computeDeltaRButton.enabled = True
+          self.step1_2_1_1_useGRECheckBox.enabled = True
+
+          # Set default denoising input to pre-irradiation volume
+          self.step1_2_1_1_denoisingInputSelector.setCurrentNode(preScanNode)
+
+          # Show registered result
+          self.showRegistrationResult(preScanNode, outputNode)
+
+          # Create separate manual adjustment transform
+          self.manualTransformNode = slicer.mrmlScene.GetFirstNodeByName("PreToPostManualAdjust")
+          if self.manualTransformNode is None:
+              self.manualTransformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "PreToPostManualAdjust")
+          else:
+            matrix = vtk.vtkMatrix4x4()
+            self.manualTransformNode.GetMatrixTransformToParent(matrix)
+            matrix.Identity()
+            self.manualTransformNode.SetMatrixTransformToParent(matrix)
+          outputNode.SetAndObserveTransformNodeID(self.manualTransformNode.GetID())
+          self.step1_2_1_1_translationSliders.setMRMLTransformNode(self.manualTransformNode)
+          self.step1_2_1_1_rotationSliders.setMRMLTransformNode(self.manualTransformNode)
+          self.step1_2_1_1_resampleButton.visible = False
+        else:
+          qt.QMessageBox.critical(None, 'Error', 'Resampling failed')
+      else:
+        progressDialog.close()
+        qt.QApplication.restoreOverrideCursor()
+        qt.QMessageBox.critical(None, 'Error', 'Registration failed')
+        slicer.mrmlScene.RemoveNode(transformNode)
+        
+    except Exception as e:
+      qt.QApplication.restoreOverrideCursor()
+      import traceback
+      traceback.print_exc()
+      qt.QMessageBox.critical(None, 'Error', f'Registration failed: {str(e)}')
+
+  #------------------------------------------------------------------------------
+  def showRegistrationResult(self, fixedVolume, registeredVolume):
+    # Display registration result in 4-up view
+    layoutManager = slicer.app.layoutManager()
+    layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+    
+    displayNode = registeredVolume.GetDisplayNode()
+    if displayNode:
+        colorNode = slicer.util.getNode('ColdToHotRainbow')
+        displayNode.SetAndObserveColorNodeID(colorNode.GetID())
+
+    for sliceViewName in ['Red', 'Yellow', 'Green']:
+      sliceWidget = layoutManager.sliceWidget(sliceViewName)
+      if sliceWidget:
+        compositeNode = sliceWidget.mrmlSliceCompositeNode()
+        compositeNode.SetBackgroundVolumeID(fixedVolume.GetID())
+        compositeNode.SetForegroundVolumeID(registeredVolume.GetID())
+        compositeNode.SetForegroundOpacity(0.5)
+        sliceWidget.sliceLogic().FitSliceToAll()
+
+  #------------------------------------------------------------------------------
+  def onManualTransformChanged(self):
+      # Show and enable resample button
+      self.step1_2_1_1_resampleButton.visible = True
+      self.step1_2_1_1_resampleButton.enabled = True
+
+  #------------------------------------------------------------------------------
+  def onResampleMeasured(self):
+      if not hasattr(self, 'transformNode') or not hasattr(self, 'registeredPostNode'):
+        slicer.util.errorDisplay('Please run registration first')
+        return
+      
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      
+      resampleParameters = {
+        'inputVolume': self.registeredPostNode.GetID(),
+        'referenceVolume': (self.step1_2_1_1_r1PreSelector.currentNode()
+                            if self.step1_2_1_1_useGRECheckBox.isChecked()
+                            else self.step1_2_1_preScanSelector.currentNode()).GetID(),
+        'outputVolume': self.registeredPostNode.GetID(),
+        'pixelType': 'float',
+        'warpTransform': self.manualTransformNode.GetID(),
+        'interpolationMode': 'Linear'
+      }
+
+      slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters, wait_for_completion=True)
+      self.registeredPostNode.HardenTransform()
+      
+      appLogic = slicer.app.applicationLogic()
+      selectionNode = appLogic.GetSelectionNode()
+      selectionNode.SetActiveVolumeID(self.registeredPostNode.GetID())
+      selectionNode.SetSecondaryVolumeID((self.step1_2_1_1_r1PreSelector.currentNode()
+                                          if self.step1_2_1_1_useGRECheckBox.isChecked()
+                                          else self.step1_2_1_preScanSelector.currentNode()).GetID())
+      appLogic.PropagateVolumeSelection()
+      
+      qt.QApplication.restoreOverrideCursor()
+      self.step1_2_1_1_resampleButton.enabled = False
+
+  #------------------------------------------------------------------------------
+  def onUseGREToggled(self, checked):
+    self.step1_2_1_1_applyToR1Button.visible = checked
+    self.step1_2_1_1_applyToR1Button.collapsed = not checked
+
+  #------------------------------------------------------------------------------
+  def onApplyTransformToR1(self):
+    r1PreNode = self.step1_2_1_1_r1PreSelector.currentNode()
+    r1PostNode = self.step1_2_1_1_r1PostSelector.currentNode()
+
+    if not r1PreNode or not r1PostNode:
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre- and post-irradiation R1 maps.')
+      return
+
+    if not hasattr(self, 'transformNode') or self.transformNode is None:
+      qt.QMessageBox.warning(None, 'Warning', 'No registration transform found. Please run registration first.')
+      return
+
+    qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+    progressDialog = qt.QProgressDialog("Applying transform to R1 maps...", "OK", 0, 0)
+    progressDialog.setModal(True)
+    progressDialog.setMinimumDuration(0)
+    progressDialog.show()
+    slicer.app.processEvents()
+
+    try:
+      # Create output node for registered R1 post volume
+      outputName = r1PostNode.GetName() + "_registered"
+      outputNode = slicer.mrmlScene.GetFirstNodeByName(outputName)
+      if outputNode is None:
+        outputNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", outputName)
+
+      resampleParameters = {
+        'inputVolume': r1PostNode.GetID(),
+        'referenceVolume': r1PreNode.GetID(),
+        'outputVolume': outputNode.GetID(),
+        'pixelType': 'float',
+        'warpTransform': self.transformNode.GetID(),
+        'interpolationMode': 'Linear',
+      }
+
+      cliNode = slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters, wait_for_completion=True)
+      progressDialog.close()
+      qt.QApplication.restoreOverrideCursor()
+
+      if cliNode.GetStatus() & cliNode.Completed:
+        self.registeredPostNode = outputNode
+        self.manualTransformNode = slicer.mrmlScene.GetFirstNodeByName("PreToPostManualAdjust")
+        if self.manualTransformNode is None:
+            self.manualTransformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "PreToPostManualAdjust")
+        else:
+          matrix = vtk.vtkMatrix4x4()
+          self.manualTransformNode.GetMatrixTransformToParent(matrix)
+          matrix.Identity()
+          self.manualTransformNode.SetMatrixTransformToParent(matrix)
+        outputNode.SetAndObserveTransformNodeID(self.manualTransformNode.GetID())
+        self.step1_2_1_1_translationSliders.setMRMLTransformNode(self.manualTransformNode)
+        self.step1_2_1_1_rotationSliders.setMRMLTransformNode(self.manualTransformNode)
+        self.step1_2_1_1_resampleButton.visible = False
+        self.showRegistrationResult(r1PreNode, outputNode)
+        self.step1_2_1_1_denoisingInputSelector.setCurrentNode(r1PreNode)
+      else:
+        qt.QMessageBox.critical(None, 'Error', 'Failed to apply transform to R1 maps')
+    except Exception as e:
+      progressDialog.close()
+      qt.QApplication.restoreOverrideCursor()
+      qt.QMessageBox.critical(None, 'Error', f'Failed to apply transform: {str(e)}')
+  
+  #------------------------------------------------------------------------------
+  def onFilterTypeChanged(self, index):
+      filterType = self.step1_2_1_1_filterTypeComboBox.currentText
+      self.step1_2_1_1_gradientParamsWidget.setVisible(filterType == "Gradient Anisotropic Diffusion")
+      self.step1_2_1_1_curvatureParamsWidget.setVisible(filterType == "Curvature Anisotropic Diffusion")
+      self.step1_2_1_1_gaussianParamsWidget.setVisible(filterType == "Gaussian Blur Image Filter")
+      self.step1_2_1_1_medianParamsWidget.setVisible(filterType == "Median Image Filter")
+    
+  #------------------------------------------------------------------------------
+  def onApplyDenoising(self):
+      inputVolume = self.step1_2_1_1_denoisingInputSelector.currentNode()
+      
+      if not inputVolume:
+        qt.QMessageBox.warning(None, 'Warning', 'Please select an input volume.')
+        return
+      
+      filterType = self.step1_2_1_1_filterTypeComboBox.currentText
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      progressDialog = qt.QProgressDialog("Denoising. This may take several seconds.", "OK", 0, 0)
+      progressDialog.setWindowModality(qt.Qt.WindowModal)
+      progressDialog.show()
+      slicer.app.processEvents()
+      
+      try:
+        if filterType == "Gradient Anisotropic Diffusion":
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'numberOfIterations': self.step1_2_1_1_gradientIterationsSpinBox.value,
+            'timeStep': self.step1_2_1_1_gradientTimeStepSpinBox.value,
+            'conductance': self.step1_2_1_1_gradientConductanceSpinBox.value
+          }
+          slicer.cli.run(slicer.modules.gradientanisotropicdiffusion, None, params, wait_for_completion=True)
+        
+        elif filterType == "Curvature Anisotropic Diffusion":
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'numberOfIterations': self.step1_2_1_1_curvatureIterationsSpinBox.value,
+            'timeStep': self.step1_2_1_1_curvatureTimeStepSpinBox.value,
+            'conductance': self.step1_2_1_1_curvatureConductanceSpinBox.value
+          }
+          slicer.cli.run(slicer.modules.curvatureanisotropicdiffusion, None, params, wait_for_completion=True)
+        
+        elif filterType == "Gaussian Blur Image Filter":
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'sigma': self.step1_2_1_1_gaussianSigmaSpinBox.value
+          }
+          slicer.cli.run(slicer.modules.gaussianblurimagefilter, None, params, wait_for_completion=True)
+        
+        elif filterType == "Median Image Filter":
+          kernelSize = self.step1_2_1_1_medianNeighborhoodSpinBox.value
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'neighborhood': [kernelSize, kernelSize, kernelSize]
+          }
+          slicer.cli.run(slicer.modules.medianimagefilter, None, params, wait_for_completion=True)
+        qt.QApplication.restoreOverrideCursor()
+        progressDialog.close()
+        qt.QMessageBox.information(None, 'Success', 'Denoising complete.')
+        self.showDenoisedResult(inputVolume)
+      
+      except Exception as e:
+        qt.QApplication.restoreOverrideCursor()
+        progressDialog.close()
+        qt.QMessageBox.critical(None, 'Error', f'Denoising failed: {str(e)}')
+  
+  #------------------------------------------------------------------------------
+  def showDenoisedResult(self, denoisedVolume):
+    # Set denoised volume as background in all views
+    layoutManager = slicer.app.layoutManager()
+    layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+    
+    appLogic = slicer.app.applicationLogic()
+    selectionNode = appLogic.GetSelectionNode()
+    selectionNode.SetActiveVolumeID(denoisedVolume.GetID())
+    selectionNode.SetSecondaryVolumeID(None)
+    appLogic.PropagateVolumeSelection()
+    
+    # Reset field of view in all slice views
+    layoutManager = self.layoutWidget.layoutManager()
+    threeDWidget = layoutManager.threeDWidget(0)
+    if threeDWidget is not None and threeDWidget.threeDView() is not None:
+      threeDWidget.threeDView().resetFocalPoint()
+
+  #------------------------------------------------------------------------------
+  def onComputeDeltaR(self):
+    # Compute Delta R by subtracting pre from registered post
+    if self.step1_2_1_1_useGRECheckBox.isChecked():
+      preScanNode = self.step1_2_1_1_r1PreSelector.currentNode()
+    else:
+      preScanNode = self.step1_2_1_preScanSelector.currentNode()
+    postScanNode = self.step1_2_1_postScanSelector.currentNode()
+
+    if preScanNode is None:
+      qt.QMessageBox.warning(None, 'Warning', 'No pre-irradiation R1 map selected. Please select one in the R1 map section.')
+      return
+    
+    if not preScanNode or not self.registeredPostNode:
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre- and post-irradiation volumes')
+      return
+    
+    try:
+      # Harden any pending transform on the registered post node before subtraction,
+      # otherwise the CLI operates on raw untransformed voxel data
+      if self.registeredPostNode.GetTransformNodeID():
+        self.registeredPostNode.HardenTransform()
+
+      # Create output volume for Delta R
+      deltaRNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", "DeltaR_Map")
+      
+      # Subtract pre from post
+      parameters = {
+        "inputVolume1": self.registeredPostNode.GetID(),
+        "inputVolume2": preScanNode.GetID(),
+        "outputVolume": deltaRNode.GetID(),
+        "order": 1  # Linear interpolation
+      }
+      
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      
+      # Show progress dialog
+      progressDialog = qt.QProgressDialog("Computing ΔR1 or ΔR2.", "OK", 0, 0)
+      progressDialog.setModal(True)
+      progressDialog.setMinimumDuration(0)
+      progressDialog.show()
+      slicer.app.processEvents()
+      
+      cliNode = slicer.cli.run(slicer.modules.subtractscalarvolumes, None, parameters, wait_for_completion=True)
+      
+      progressDialog.close()
+      qt.QApplication.restoreOverrideCursor()
+      
+      if cliNode.GetStatus() & cliNode.Completed:
+        self.deltaRNode = deltaRNode
+        
+        # Set as the measured volume for calibration workflow
+        self.measuredVolumeNode = deltaRNode
+        
+        # Display the Delta R map in 4-up view
+        self.showDeltaRResult(deltaRNode)
+        
+        qt.QMessageBox.information(None, 'Success', 'ΔR1 or ΔR2 map calculated successfully.')
+      else:
+        qt.QMessageBox.critical(None, 'Error', 'Delta R computation failed')
+        slicer.mrmlScene.RemoveNode(deltaRNode)
+        
+    except Exception as e:
+      qt.QApplication.restoreOverrideCursor()
+      import traceback
+      traceback.print_exc()
+      qt.QMessageBox.critical(None, 'Error', f'Delta R computation failed: {str(e)}')
+  
+  #------------------------------------------------------------------------------
+  def showDeltaRResult(self, deltaRVolume):
+    # Display Delta R map in 4-up view
+    layoutManager = slicer.app.layoutManager()
+    layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+    
+    appLogic = slicer.app.applicationLogic()
+    selectionNode = appLogic.GetSelectionNode()
+    selectionNode.SetActiveVolumeID(deltaRVolume.GetID())
+    selectionNode.SetSecondaryVolumeID(None)
+    appLogic.PropagateVolumeSelection()
+
+    displayNode = deltaRVolume.GetDisplayNode()
+    if displayNode:
+        colorNode = slicer.util.getNode('ColdToHotRainbow')
+        displayNode.SetAndObserveColorNodeID(colorNode.GetID())
+        displayNode.AutoWindowLevelOn()
+    
+    layoutManager = self.layoutWidget.layoutManager()
+    threeDWidget = layoutManager.threeDWidget(0)
+    if threeDWidget is not None and threeDWidget.threeDView() is not None:
+      threeDWidget.threeDView().resetFocalPoint()
+
+  #------------------------------------------------------------------------------
+  # STEP 1.2.2
+  #------------------------------------------------------------------------------
+  def onCalibrationPreScanSelected(self, node):
+    # Enable Delta R workflow when pre-irradiation calibration volume is selected
+    if node:
+      self.step1_2_2_1_step2_registrationButton.visible = True
+      self.step1_2_2_1_step2_registrationButton.enabled = True
+      self.step1_2_2_1_step2_registrationButton.collapsed = False
+      self.step1_2_2_1_step3_denoisingButton.visible = True
+      self.step1_2_2_1_step4_computeButton.visible = True
+    else:
+      for btn in [self.step1_2_2_1_step2_registrationButton,
+                  self.step1_2_2_1_step3_denoisingButton,
+                  self.step1_2_2_1_step4_computeButton]:
+        btn.enabled = True
+        btn.collapsed = True
+        btn.visible = False
+
+  #------------------------------------------------------------------------------
+  def onCalibrationPostScanSelected(self, node):
+    # Auto-populate calibration volume when post-irradiation volume is selected
+    if node:
+      # Set post-irradiation volume as the default calibration volume
+      self.calibrationVolumeNode = node
+
+  #------------------------------------------------------------------------------
+  def onCalibrationRegisterPrePost(self):
+    # Register calibration post to pre-irradiation volume using BRAINS
+    preScanNode = self.step1_2_2_preScanSelector.currentNode()
+    postScanNode = self.step1_2_2_postScanSelector.currentNode()
+    
+    if not preScanNode or not postScanNode:
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre and post-irradiation volumes')
+      return
+    
+    try:
+      # Create transform node
+      transformNode = slicer.mrmlScene.GetFirstNodeByName("CalibrationPreToPostTransform")
+      # Reuse existing transform node if present, otherwise create one
+      if transformNode is None:
+          transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "CalibrationPreToPostTransform")
+      
+      # Set up BRAINS registration parameters
+      parameters = {
+        "fixedVolume": preScanNode.GetID(),
+        "movingVolume": postScanNode.GetID(),
+        "linearTransform": transformNode.GetID(),
+        "samplingPercentage": 0.02,
+        "initializeTransformMode": "useMomentsAlign",
+        "useRigid": True
+      }
+      
+      # Run BRAINS registration
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      progressDialog = qt.QProgressDialog("Performing registration. This may take several seconds.", "OK", 0, 0)
+      progressDialog.setModal(True)
+      progressDialog.setMinimumDuration(0)
+      progressDialog.show()
+      slicer.app.processEvents()
+      
+      cliNode = slicer.cli.run(slicer.modules.brainsfit, None, parameters, wait_for_completion=True)
+      
+      if cliNode.GetStatus() & cliNode.Completed:
+        # Create output node for registered calibration post volume
+        outputName = postScanNode.GetName() + "_registered"
+        outputNode = slicer.mrmlScene.GetFirstNodeByName(outputName)
+        if outputNode is None:
+          outputNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", outputName)
+
+        resampleParameters = {
+          "inputVolume": postScanNode.GetID(),
+          "referenceVolume": preScanNode.GetID(),
+          "outputVolume": outputNode.GetID(),
+          "pixelType": "float",
+          "warpTransform": transformNode.GetID(),
+          "interpolationMode": "Linear"
+        }
+        
+        cliNode2 = slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters, wait_for_completion=True)
+        
+        progressDialog.close()
+        qt.QApplication.restoreOverrideCursor()
+        
+        if cliNode2.GetStatus() & cliNode2.Completed:
+          self.calibrationRegisteredPostNode = outputNode
+          self.calibrationTransformNode = transformNode
+          
+          # Enable Steps 3 and 4
+          self.step1_2_2_1_step3_denoisingButton.enabled = True
+          self.step1_2_2_1_step4_computeButton.enabled = True
+          self.step1_2_2_1_computeDeltaRButton.enabled = True
+          self.step1_2_2_1_useGRECheckBox.enabled = True
+          
+          # Set default noising input to pre-irradiation volume
+          self.step1_2_2_1_denoisingInputSelector.setCurrentNode(preScanNode)
+
+          # Show registere result
+          self.showRegistrationResult(preScanNode, outputNode)
+
+          # Create separate manual adjustment rasnform
+          self.calibrationManualTransformNode = slicer.mrmlScene.GetFirstNodeByName("CalibrationPreToPostManualAdjust")
+          if self.calibrationManualTransformNode is None:
+              self.calibrationManualTransformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "CalibrationPreToPostManualAdjust")
+          else:
+              matrix = vtk.vtkMatrix4x4()
+              self.calibrationManualTransformNode.GetMatrixTransformToParent(matrix)
+              matrix.Identity()
+              self.calibrationManualTransformNode.SetMatrixTransformToParent(matrix)
+          outputNode.SetAndObserveTransformNodeID(self.calibrationManualTransformNode.GetID())
+          self.step1_2_2_1_translationSliders.setMRMLTransformNode(self.calibrationManualTransformNode)
+          self.step1_2_2_1_rotationSliders.setMRMLTransformNode(self.calibrationManualTransformNode)
+          self.step1_2_2_1_resampleButton.visible = False
+        else:
+          qt.QMessageBox.critical(None, 'Error', 'Resampling failed')
+      else:
+        progressDialog.close()
+        qt.QApplication.restoreOverrideCursor()
+        qt.QMessageBox.critical(None, 'Error', 'Registration failed')
+        slicer.mrmlScene.RemoveNode(transformNode)
+        
+    except Exception as e:
+      qt.QApplication.restoreOverrideCursor()
+      import traceback
+      traceback.print_exc()
+      qt.QMessageBox.critical(None, 'Error', f'Registration failed: {str(e)}')
+  
+  #------------------------------------------------------------------------------
+  def onCalibrationManualTransformChanged(self):
+    # Show and enable resample button
+    self.step1_2_2_1_resampleButton.visible = True
+    self.step1_2_2_1_resampleButton.enabled = True
+
+  #------------------------------------------------------------------------------
+  def onResampleCalibration(self):
+      if not hasattr(self, 'calibrationTransformNode') or not hasattr(self, 'calibrationRegisteredPostNode'):
+          slicer.util.errorDisplay('Please run calibration registration first')
+          return
+
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+
+      resampleParameters = {
+          'inputVolume': self.calibrationRegisteredPostNode.GetID(),
+          'referenceVolume': (self.step1_2_2_1_r1PreSelector.currentNode()
+                              if self.step1_2_2_1_useGRECheckBox.isChecked()
+                              else self.step1_2_2_preScanSelector.currentNode()).GetID(),
+          'outputVolume': self.calibrationRegisteredPostNode.GetID(),
+          'pixelType': 'float',
+          'warpTransform': self.calibrationManualTransformNode.GetID(),
+          'interpolationMode': 'Linear',
+      }
+
+      slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters, wait_for_completion=True)
+      self.calibrationRegisteredPostNode.HardenTransform()
+
+      appLogic = slicer.app.applicationLogic()
+      selectionNode = appLogic.GetSelectionNode()
+      selectionNode.SetActiveVolumeID(self.calibrationRegisteredPostNode.GetID())
+      selectionNode.SetSecondaryVolumeID((self.step1_2_2_1_r1PreSelector.currentNode()
+                                          if self.step1_2_2_1_useGRECheckBox.isChecked()
+                                          else self.step1_2_2_preScanSelector.currentNode()).GetID())
+      appLogic.PropagateVolumeSelection()
+
+      qt.QApplication.restoreOverrideCursor()
+      self.step1_2_2_1_resampleButton.enabled = False
+
+  #------------------------------------------------------------------------------
+  def onCalibrationUseGREToggled(self, checked):
+    self.step1_2_2_1_applyToR1Button.visible = checked
+    self.step1_2_2_1_applyToR1Button.collapsed = not checked
+
+  #------------------------------------------------------------------------------
+  def onCalibrationApplyTransformToR1(self):
+    r1PreNode = self.step1_2_2_1_r1PreSelector.currentNode()
+    r1PostNode = self.step1_2_2_1_r1PostSelector.currentNode()
+
+    if not r1PreNode or not r1PostNode:
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both R1 pre- and post-irradiation maps')
+      return
+
+    if not hasattr(self, 'calibrationTransformNode') or self.calibrationTransformNode is None:
+      qt.QMessageBox.warning(None, 'Warning', 'No registration transform found. Please run calibration registration first.')
+      return
+
+    qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+    progressDialog = qt.QProgressDialog("Applying transform to R1 maps...", "OK", 0, 0)
+    progressDialog.setModal(True)
+    progressDialog.setMinimumDuration(0)
+    progressDialog.show()
+    slicer.app.processEvents()
+
+    try:
+      # Create output node for registered calibration R1 post volume
+      outputName = r1PostNode.GetName() + "_registered"
+      outputNode = slicer.mrmlScene.GetFirstNodeByName(outputName)
+      if outputNode is None:
+        outputNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", outputName)
+
+      resampleParameters = {
+        'inputVolume': r1PostNode.GetID(),
+        'referenceVolume': r1PreNode.GetID(),
+        'outputVolume': outputNode.GetID(),
+        'pixelType': 'float',
+        'warpTransform': self.calibrationTransformNode.GetID(),
+        'interpolationMode': 'Linear'
+      }
+
+      cliNode = slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters, wait_for_completion=True)
+      progressDialog.close()
+      qt.QApplication.restoreOverrideCursor()
+
+      if cliNode.GetStatus() & cliNode.Completed:
+        self.calibrationRegisteredPostNode = outputNode
+        self.calibrationManualTransformNode = slicer.mrmlScene.GetFirstNodeByName("CalibrationPreToPostManualAdjust")
+        if self.calibrationManualTransformNode is None:
+            self.calibrationManualTransformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "CalibrationPreToPostManualAdjust")
+        else:
+            matrix = vtk.vtkMatrix4x4()
+            self.calibrationManualTransformNode.GetMatrixTransformToParent(matrix)
+            matrix.Identity()
+            self.calibrationManualTransformNode.SetMatrixTransformToParent(matrix)
+        outputNode.SetAndObserveTransformNodeID(self.calibrationManualTransformNode.GetID())
+        self.step1_2_2_1_translationSliders.setMRMLTransformNode(self.calibrationManualTransformNode)
+        self.step1_2_2_1_rotationSliders.setMRMLTransformNode(self.calibrationManualTransformNode)
+        self.step1_2_2_1_resampleButton.visible = False
+        self.showRegistrationResult(r1PreNode, outputNode)
+        self.step1_2_2_1_denoisingInputSelector.setCurrentNode(r1PreNode)
+      else:
+        qt.QMessageBox.critical(None, 'Error', 'Failed to apply transform to R1 maps')
+    except Exception as e:
+      progressDialog.close()
+      qt.QApplication.restoreOverrideCursor()
+      qt.QMessageBox.critical(None, 'Error', f'Failed to apply transform: {str(e)}')
+
+  #------------------------------------------------------------------------------
+  def onCalibrationFilterTypeChanged(self, index):
+    filterType = self.step1_2_2_1_filterTypeComboBox.currentText
+    self.step1_2_2_1_gradientParamsWidget.setVisible(filterType == "Gradient Anisotropic Diffusion")
+    self.step1_2_2_1_curvatureParamsWidget.setVisible(filterType == "Curvature Anisotropic Diffusion")
+    self.step1_2_2_1_gaussianParamsWidget.setVisible(filterType == "Gaussian Blur Image Filter")
+    self.step1_2_2_1_medianParamsWidget.setVisible(filterType == "Median Image Filter")
+
+  #------------------------------------------------------------------------------
+  def onCalibrationApplyDenoising(self):
+      inputVolume = self.step1_2_2_1_denoisingInputSelector.currentNode()
+      
+      if not inputVolume:
+        qt.QMessageBox.warning(None, 'Warning', 'Please select an input volume.')
+       
+        return
+      
+      filterType = self.step1_2_2_1_filterTypeComboBox.currentText
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      progressDialog = qt.QProgressDialog("Denoising. This may take several seconds.", "OK", 0, 0)
+      progressDialog.setWindowModality(qt.Qt.WindowModal)
+      progressDialog.show()
+      slicer.app.processEvents()
+      
+      try:
+        if filterType == "Gradient Anisotropic Diffusion":
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'numberOfIterations': self.step1_2_2_1_gradientIterationsSpinBox.value,
+            'timeStep': self.step1_2_2_1_gradientTimeStepSpinBox.value,
+            'conductance': self.step1_2_2_1_gradientConductanceSpinBox.value
+          }
+          slicer.cli.run(slicer.modules.gradientanisotropicdiffusion, None, params, wait_for_completion=True)
+        
+        elif filterType == "Curvature Anisotropic Diffusion":
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'numberOfIterations': self.step1_2_2_1_curvatureIterationsSpinBox.value,
+            'timeStep': self.step1_2_2_1_curvatureTimeStepSpinBox.value,
+            'conductance': self.step1_2_2_1_curvatureConductanceSpinBox.value
+          }
+          slicer.cli.run(slicer.modules.curvatureanisotropicdiffusion, None, params, wait_for_completion=True)          
+        
+        elif filterType == "Gaussian Blur Image Filter":
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'sigma': self.step1_2_2_1_gaussianSigmaSpinBox.value
+          }
+          slicer.cli.run(slicer.modules.gaussianblurimagefilter, None, params, wait_for_completion=True)
+        
+        elif filterType == "Median Image Filter":
+          kernelSize = self.step1_2_2_1_medianNeighborhoodSpinBox.value
+          params = {
+            'inputVolume': inputVolume.GetID(),
+            'outputVolume': inputVolume.GetID(),
+            'neighborhood': [kernelSize, kernelSize, kernelSize]
+          }
+          slicer.cli.run(slicer.modules.medianimagefilter, None, params, wait_for_completion=True)
+        qt.QApplication.restoreOverrideCursor()
+        progressDialog.close()
+        qt.QMessageBox.information(None, 'Success', 'Denoising complete.')
+        self.showDenoisedResult(inputVolume)
+  
+      except Exception as e:
+        qt.QApplication.restoreOverrideCursor()
+        progressDialog.close()
+        qt.QMessageBox.critical(None, 'Error', f'Denoising failed: {str(e)}')
+
+  #------------------------------------------------------------------------------
+  def onCalibrationComputeDeltaR(self):
+    # Compute Delta R for calibration gel by subtracting pre from registered post
+    if self.step1_2_2_1_useGRECheckBox.isChecked():
+      preScanNode = self.step1_2_2_1_r1PreSelector.currentNode()
+    else:
+      preScanNode = self.step1_2_2_preScanSelector.currentNode()
+    postScanNode = self.step1_2_2_postScanSelector.currentNode()
+
+    if preScanNode is None:
+      qt.QMessageBox.warning(None, 'Warning', 'No pre-irradiation R1 map selected. Please select one in the R1 map section.')
+      return
+    
+    if not preScanNode or not self.calibrationRegisteredPostNode:
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre and post-irradiation volumes')
+      return
+    
+    try:
+      # Harden any pending transform on the registered post node before subtraction,
+      # otherwise the CLI operates on raw untransformed voxel data
+      if self.calibrationRegisteredPostNode.GetTransformNodeID():
+        self.calibrationRegisteredPostNode.HardenTransform()
+
+      # Create output volume for Delta R
+      deltaRNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", "CalibrationDeltaR_Map")
+      
+      # Subtract pre from post
+      parameters = {
+        "inputVolume1": self.calibrationRegisteredPostNode.GetID(),
+        "inputVolume2": preScanNode.GetID(),
+        "outputVolume": deltaRNode.GetID(),
+        "order": 1
+      }
+      
+      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
+      
+      # Show progress dialog
+      progressDialog = qt.QProgressDialog("Computing ΔR1 or ΔR2.", "OK", 0, 0)
+      progressDialog.setModal(True)
+      progressDialog.setMinimumDuration(0)
+      progressDialog.show()
+      slicer.app.processEvents()
+      
+      cliNode = slicer.cli.run(slicer.modules.subtractscalarvolumes, None, parameters, wait_for_completion=True)
+      
+      progressDialog.close()
+      qt.QApplication.restoreOverrideCursor()
+      
+      if cliNode.GetStatus() & cliNode.Completed:
+        self.calibrationDeltaRNode = deltaRNode
+        
+        # Set as the calibration volume for the workflow
+        self.calibrationVolumeNode = deltaRNode
+        
+        # Display the Delta R map in 4-up view
+        self.showDeltaRResult(deltaRNode)
+        
+        qt.QMessageBox.information(None, 'Success', 'ΔR1 or ΔR2 map calculated successfully.')
+      else:
+        qt.QMessageBox.critical(None, 'Error', 'Delta R computation failed')
+        slicer.mrmlScene.RemoveNode(deltaRNode)
+        
+    except Exception as e:
+      qt.QApplication.restoreOverrideCursor()
+      import traceback
+      traceback.print_exc()
+      qt.QMessageBox.critical(None, 'Error', f'Delta R computation failed: {str(e)}')
 
 #
 # GelDosimetryAnalysis
@@ -2518,9 +4057,9 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     self.expectedNumOfFilesInDicomDataDir = 328
     self.tempDir = gelDosimetryAnalysisDir + '/Temp'
 
-    self.planCtVolumeName = '47: ARIA RadOnc Images - Verification Plan Phantom'
+    self.planningVolumeName = '47: ARIA RadOnc Images - Verification Plan Phantom'
     self.planDoseVolumeName = '53: RTDOSE: Eclipse Doses: VMAT XM1 LCV'
-    self.cbctVolumeName = '0: Unnamed Series'
+    self.igrtVolumeName = '0: Unnamed Series'
     self.structureSetNodeName = '52: RTSTRUCT: CT_1'
     self.measuredVolumeName = 'LCV01_HR_plan (lcv01_hr)'
     self.calibrationVolumeName = 'LCV02_HR_calib (lcv02_hr)'
@@ -2553,16 +4092,16 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
 
           # slicer.app.processEvents()
           # qt.QMessageBox.information(None,"Done","DICOM files loaded successfully.")
-          slicer.util.delayDisplay("DICOM files loaded successfully.")
+          self.delayDisplay("DICOM files loaded successfully.")
 
     except Exception as e:
       import traceback
       traceback.print_exc()
-      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
 
   #------------------------------------------------------------------------------
   def TestSection_02_FinalizeDataLoading(self):
-    slicer.util.delayDisplay("Perform registration",self.delayMs)
+    self.delayDisplay("Perform registration",self.delayMs)
 
     try:
       slicer.util.selectModule('GelDosimetryAnalysis')
@@ -2583,22 +4122,22 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
       # Verify that the VFF files were loaded
       self.assertEqual( len( slicer.util.getNodes('vtkMRMLScalarVolumeNode*') ), numOfScalarVolumeNodesBeforeLoad + 2 )
 
-      slicer.util.delayDisplay("VFF files loaded successfully.")
+      self.delayDisplay("VFF files loaded successfully.")
       # slicer.app.processEvents()
       # qt.QMessageBox.information(None,"Done","VFF files loaded successfully.")
 
       # Assign roles
-      planCtVolume = slicer.util.getNode(self.planCtVolumeName)
-      self.assertIsNotNone(planCtVolume)
-      self.slicelet.planCtSelector.setCurrentNode(planCtVolume)
+      planningVolume = slicer.util.getNode(self.planningVolumeName)
+      self.assertIsNotNone(planningVolume)
+      self.slicelet.planningSelector.setCurrentNode(planningVolume)
 
       planDoseVolume = slicer.util.getNode(self.planDoseVolumeName)
       self.assertIsNotNone(planDoseVolume)
       self.slicelet.planDoseSelector.setCurrentNode(planDoseVolume)
 
-      cbctVolume = slicer.util.getNode(self.cbctVolumeName)
-      self.assertIsNotNone(cbctVolume)
-      self.slicelet.cbctSelector.setCurrentNode(cbctVolume)
+      igrtVolume = slicer.util.getNode(self.igrtVolumeName)
+      self.assertIsNotNone(igrtVolume)
+      self.slicelet.igrtSelector.setCurrentNode(igrtVolume)
 
       structureSetNode = slicer.util.getNode(self.structureSetNodeName)
       self.assertIsNotNone(structureSetNode)
@@ -2617,38 +4156,38 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     except Exception as e:
       import traceback
       traceback.print_exc()
-      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
   def TestSection_03_Register(self):
-    slicer.util.delayDisplay("Register PlanCT to CBCT automatically and Measured dose to CBCT using fiducials",self.delayMs)
+    self.delayDisplay("Register planning volume to IGRT volume automatically and Measured dose to IGRT volume using fiducials",self.delayMs)
 
     try:
       self.assertIsNotNone(self.slicelet)
 
       self.slicelet.step2_registrationCollapsibleButton.setChecked(True)
-      cbctToPlanTransformNode = self.slicelet.onPlanCtToCbctAutomaticRegistration()
+      igrtToPlanningTransformNode = self.slicelet.onPlanningToIGRTAutomaticRegistration()
       slicer.app.processEvents()
 
-      self.assertIsNotNone(cbctToPlanTransformNode)
-      cbctToPlanTransformMatrix = cbctToPlanTransformNode.GetTransformToParent().GetMatrix()
-      self.assertAlmostEqual(cbctToPlanTransformMatrix.GetElement(0,3), 124.44, 0)
-      self.assertAlmostEqual(cbctToPlanTransformMatrix.GetElement(1,3), 182.36, 0)
-      self.assertAlmostEqual(cbctToPlanTransformMatrix.GetElement(2,3) / 2.4,  0, -1) # +/- 12 in Z direction
-      self.assertAlmostEqual(cbctToPlanTransformMatrix.GetElement(0,0), 1.0, 1)
-      self.assertAlmostEqual(cbctToPlanTransformMatrix.GetElement(1,1), 1.0, 1)
-      self.assertAlmostEqual(cbctToPlanTransformMatrix.GetElement(2,2), 1.0, 1)
+      self.assertIsNotNone(igrtToPlanningTransformNode)
+      igrtToPlanningTransformMatrix = igrtToPlanningTransformNode.GetTransformToParent().GetMatrix()
+      self.assertAlmostEqual(igrtToPlanningTransformMatrix.GetElement(0,3), 124.44, 0)
+      self.assertAlmostEqual(igrtToPlanningTransformMatrix.GetElement(1,3), 182.36, 0)
+      self.assertAlmostEqual(igrtToPlanningTransformMatrix.GetElement(2,3) / 2.4,  0, -1) # +/- 12 in Z direction
+      self.assertAlmostEqual(igrtToPlanningTransformMatrix.GetElement(0,0), 1.0, 1)
+      self.assertAlmostEqual(igrtToPlanningTransformMatrix.GetElement(1,1), 1.0, 1)
+      self.assertAlmostEqual(igrtToPlanningTransformMatrix.GetElement(2,2), 1.0, 1)
 
       # Select fiducials
-      self.slicelet.step2_2_measuredDoseToCbctRegistrationCollapsibleButton.setChecked(True)
-      cbctFiducialsNode = slicer.util.getNode(self.slicelet.cbctMarkupsFiducialNode_WithMeasuredName)
-      cbctFiducialsNode.AddFiducial(76.4, 132.1, -44.8)
-      cbctFiducialsNode.AddFiducial(173, 118.4, -44.8)
-      cbctFiducialsNode.AddFiducial(154.9, 163.5, -44.8)
-      cbctFiducialsNode.AddFiducial(77.4, 133.6, 23.9)
-      cbctFiducialsNode.AddFiducial(172.6, 118.9, 23.9)
-      cbctFiducialsNode.AddFiducial(166.5, 151.3, 23.9)
+      self.slicelet.step2_2_measuredDoseToIgrtRegistrationCollapsibleButton.setChecked(True)
+      igrtFiducialsNode = slicer.util.getNode(self.slicelet.igrtMarkupsFiducialNode_WithMeasuredName)
+      igrtFiducialsNode.AddFiducial(76.4, 132.1, -44.8)
+      igrtFiducialsNode.AddFiducial(173, 118.4, -44.8)
+      igrtFiducialsNode.AddFiducial(154.9, 163.5, -44.8)
+      igrtFiducialsNode.AddFiducial(77.4, 133.6, 23.9)
+      igrtFiducialsNode.AddFiducial(172.6, 118.9, 23.9)
+      igrtFiducialsNode.AddFiducial(166.5, 151.3, 23.9)
 
       self.slicelet.step2_2_2_measuredFiducialSelectionCollapsibleButton.setChecked(True)
       measuredFiducialsNode = slicer.util.getNode(self.slicelet.measuredMarkupsFiducialNodeName)
@@ -2660,26 +4199,26 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
       measuredFiducialsNode.AddFiducial(-15, -73.6, 94)
 
       # Perform fiducial registration
-      self.slicelet.step2_2_3_measuredToCbctRegistrationCollapsibleButton.setChecked(True)
-      cbctToMeasuredTransformNode = self.slicelet.onMeasuredToCbctRegistration()
-      self.assertIsNotNone(cbctToMeasuredTransformNode)
-      cbctToMeasuredTransformMatrix = cbctToMeasuredTransformNode.GetTransformToParent().GetMatrix()
-      self.assertAlmostEqual(cbctToMeasuredTransformMatrix.GetElement(0,3), 127.70, 0)
-      self.assertAlmostEqual(cbctToMeasuredTransformMatrix.GetElement(1,3), 213.64, 0)
-      self.assertAlmostEqual(cbctToMeasuredTransformMatrix.GetElement(2,3), -71.98, 0)
-      self.assertAlmostEqual(cbctToMeasuredTransformMatrix.GetElement(0,0), 0.73, 1)
-      self.assertAlmostEqual(cbctToMeasuredTransformMatrix.GetElement(1,1), 0.73, 1)
-      self.assertAlmostEqual(cbctToMeasuredTransformMatrix.GetElement(2,2), 1.00, 1)
+      self.slicelet.step2_2_3_measuredToIgrtRegistrationCollapsibleButton.setChecked(True)
+      igrtToMeasuredTransformNode = self.slicelet.onMeasuredToIgrtRegistration()
+      self.assertIsNotNone(igrtToMeasuredTransformNode)
+      igrtToMeasuredTransformMatrix = igrtToMeasuredTransformNode.GetTransformToParent().GetMatrix()
+      self.assertAlmostEqual(igrtToMeasuredTransformMatrix.GetElement(0,3), 127.70, 0)
+      self.assertAlmostEqual(igrtToMeasuredTransformMatrix.GetElement(1,3), 213.64, 0)
+      self.assertAlmostEqual(igrtToMeasuredTransformMatrix.GetElement(2,3), -71.98, 0)
+      self.assertAlmostEqual(igrtToMeasuredTransformMatrix.GetElement(0,0), 0.73, 1)
+      self.assertAlmostEqual(igrtToMeasuredTransformMatrix.GetElement(1,1), 0.73, 1)
+      self.assertAlmostEqual(igrtToMeasuredTransformMatrix.GetElement(2,2), 1.00, 1)
 
     except Exception as e:
       import traceback
       traceback.print_exc()
-      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
   def TestSection_04_Calibrate(self):
-    slicer.util.delayDisplay("Perform calibration",self.delayMs)
+    self.delayDisplay("Perform calibration",self.delayMs)
 
     try:
       self.assertIsNotNone(self.slicelet)
@@ -2707,12 +4246,12 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
       computeDoseFromPddSuccessful = self.slicelet.onComputeDoseFromPdd()
       self.assertTrue(computeDoseFromPddSuccessful)
 
-      # Show optical attenuation VS dose curve
+      # Show ΔR1 or ΔR2 VS dose curve
       self.slicelet.step3_1_calibrationRoutineCollapsibleButton.setChecked(True)
-      self.slicelet.onShowOpticalAttenuationVsDoseCurve()
+      self.slicelet.onShowDeltaRVsDoseCurve()
 
-      # Fit polynomial on OA VS dose curve
-      self.slicelet.onFitPolynomialToOpticalAttenuationVsDoseCurve()
+      # Fit polynomial on ΔR1 or ΔR2 VS dose curve
+      self.slicelet.onFitPolynomialToDeltaRVsDoseCurve()
 
       # Calibrate
       applyCalibrationSuccessful = self.slicelet.onApplyCalibration()
@@ -2736,17 +4275,17 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
       self.assertEqual(doseVoxelCount, 16777216)
 
       slicer.app.processEvents()
-      slicer.util.delayDisplay('Wait for the slicelet to catch up', 300)
+      self.delayDisplay('Wait for the slicelet to catch up', 300)
 
     except Exception as e:
       import traceback
       traceback.print_exc()
-      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
   def TestSection_05_CompareDoses(self):
-    slicer.util.delayDisplay("Perform gamma dose comparison",self.delayMs)
+    self.delayDisplay("Perform gamma dose comparison",self.delayMs)
 
     try:
       self.assertIsNotNone(self.slicelet)
@@ -2789,7 +4328,7 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     except Exception as e:
       import traceback
       traceback.print_exc()
-      slicer.util.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
+      self.delayDisplay('Test caused exception!\n' + str(e),self.delayMs*2)
       raise Exception("Exception occurred, handled, thrown further to workflow level")
 
   #------------------------------------------------------------------------------
@@ -2812,7 +4351,6 @@ class GelDosimetryAnalysisTest(ScriptedLoadableModuleTest):
     self.setUp()
 
     self.test_GelDosimetryAnalysis_FullTest()
-
 
 #
 # Main
