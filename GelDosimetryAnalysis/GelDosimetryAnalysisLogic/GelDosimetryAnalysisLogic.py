@@ -638,11 +638,15 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     if measuredVolume.GetParentTransformNode() != None:
       calibratedVolume.SetAndObserveTransformNodeID(measuredVolume.GetParentTransformNode().GetID())
 
-    coefficients = numpy_support.numpy_to_vtk(self.calibrationPolynomialCoefficients)
-
-    if slicer.modules.geldosimetryanalysisalgo.logic().ApplyPolynomialFunctionOnVolume(calibratedVolume, coefficients) == False:
-      logging.error('Calibration failed')
+    # Apply the fitted polynomial voxel-wise using NumPy directly
+    try:
+      measuredArray = slicer.util.arrayFromVolume(calibratedVolume)
+      calibratedArray = numpy.polyval(self.calibrationPolynomialCoefficients, measuredArray)
+      slicer.util.updateVolumeFromArray(calibratedVolume, calibratedArray)
+    except Exception as e:
+      logging.error('Calibration failed: {0}'.format(str(e)))
       slicer.mrmlScene.RemoveNode(calibratedVolume)
+      qt.QApplication.restoreOverrideCursor()
       return None
 
     end = time.time()

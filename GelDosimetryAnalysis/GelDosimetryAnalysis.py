@@ -9,6 +9,7 @@ import DataProbeLib
 import slicer.util
 from DICOMLib import DICOMUtils
 from slicer.util import VTKObservationMixin
+import LineProfile
 
 #
 # Gel dosimetry analysis slicelet
@@ -168,7 +169,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.sliceAnnotations.updateSliceViewFromGUI()
 
     # Create line profile logic
-    self.lineProfileLogic = GelDosimetryAnalysisLogic.LineProfileLogic()
+    self.lineProfileLogic = {}          
+    self.lineProfilePlotChartNode = None  
 
     # Set up step panels
     self.setup_Step0_LayoutSelection()
@@ -748,7 +750,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step3_1_yScaleLabel = qt.QLabel('  Y scale:')
     self.step3_1_yScaleSpinBox = qt.QDoubleSpinBox()
     self.step3_1_yScaleSpinBox.decimals = 3
-    self.step3_1_yScaleSpinBox.singleStep = 0.01
+    self.step3_1_yScaleSpinBox.singleStep = 0.1
     self.step3_1_yScaleSpinBox.value = 1
     self.step3_1_yScaleSpinBox.minimum = 0
     self.step3_1_yScaleSpinBox.maximum = 100000
@@ -1091,7 +1093,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
 
     # Input ruler selector
     self.stepT1_inputRulerSelector = slicer.qMRMLNodeComboBox()
-    self.stepT1_inputRulerSelector.nodeTypes = ["vtkMRMLMarkupsLineNode", "vtkMRMLAnnotationRulerNode"]
+    self.stepT1_inputRulerSelector.nodeTypes = ["vtkMRMLMarkupsLineNode"]
     self.stepT1_inputRulerSelector.selectNodeUponCreation = True
     self.stepT1_inputRulerSelector.addEnabled = True
     self.stepT1_inputRulerSelector.removeEnabled = True
@@ -1146,7 +1148,6 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       self.logic.exportLineProfileToCSV(self.lineProfileData)
     else:
       slicer.util.delayDisplay("No line profile available to export.")
-
 
   #
   # -----------------------
@@ -2308,95 +2309,142 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     # Show dose volumes
     if self.planDoseVolumeNode:
       selectionNode.SetActiveVolumeID(self.planDoseVolumeNode.GetID())
-    if self.calibratedMeasuredVolumeNode:
+    if self.calibratedMeasnuredVolumeNode:
       selectionNode.SetSecondaryVolumeID(self.calibratedMeasuredVolumeNode.GetID())
     appLogic = slicer.app.applicationLogic()
     appLogic.PropagateVolumeSelection()
 
   #------------------------------------------------------------------------------
   def onCreateLineProfileButton(self):
-    # Create table nodes for the results
-    if not hasattr(self, 'lineProfileTableNode'):
-      self.lineProfileTableNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+      # Create table nodes for the results
+      if not hasattr(self, 'lineProfileTableNode'):
+          self.lineProfileTableNode = {}
 
-    # Set up line profile logic
-    self.lineProfileLogic.outputPlotSeriesNodes = {}
-    self.lineProfileLogic.outputTableNode = self.lineProfileTableNode
-    self.lineProfileLogic.inputRulerNode = self.stepT1_inputRulerSelector.currentNode()
-    self.lineProfileLogic.enableAutoUpdate(True)
+      # Grab input line node
+      inputLineNode = self.stepT1_inputRulerSelector.currentNode()
+      lineResolutionMm = self.stepT1_lineResolutionMmSliderWidget.value
+      rulerLengthMm = slicer.vtkMRMLMarkupsCurveNode.GetCurveLength(inputLineNode.GetCurvePointsWorld(), inputLineNode.IsA('vtkMRMLClosedCurveNode'))
+      lineResolution = max(2, int((rulerLengthMm / lineResolutionMm) + 0.5))
 
-    rulerLengthMm = self.lineProfileLogic.computeRulerLength(self.lineProfileLogic.inputRulerNode)
-    lineResolutionMm = float(self.stepT1_lineResolutionMmSliderWidget.value)
-    self.lineProfileLogic.lineResolution = int( (rulerLengthMm / lineResolutionMm) + 0.5 )
+      # Generate one plot chart containing all three series
+      if not self.lineProfilePlotChartNode:
+          self.lineProfilePlotChartNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotChartNode")
+          self.lineProfilePlotChartNode.SetXAxisTitle("Distance (mm)")
+          self.lineProfilePlotChartNode.SetYAxisTitle("Intensity")
 
-    # Get number of samples based on selected sampling density
-    self.lineProfileLogic.inputVolumeNodes = []
-    if self.planDoseVolumeNode:
-      self.lineProfileLogic.inputVolumeNodes.append(self.planDoseVolumeNode)
-      if not hasattr(self, 'planDosePlotSeriesNode'):
-        self.planDosePlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
-      self.lineProfileLogic.outputPlotSeriesNodes[self.planDoseVolumeNode.GetID()] = self.planDosePlotSeriesNode
-    if self.calibratedMeasuredVolumeNode:
-      self.lineProfileLogic.inputVolumeNodes.append(self.calibratedMeasuredVolumeNode)
-      if not hasattr(self, 'calibratedMeasuredPlotSeriesNode'):
-        self.calibratedMeasuredPlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
-      self.lineProfileLogic.outputPlotSeriesNodes[self.calibratedMeasuredVolumeNode.GetID()] = self.calibratedMeasuredPlotSeriesNode
-    if self.gammaVolumeNode:
-      self.lineProfileLogic.inputVolumeNodes.append(self.gammaVolumeNode)
-      if not hasattr(self, 'gammaPlotSeriesNode'):
-        self.gammaPlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
-      self.lineProfileLogic.outputPlotSeriesNodes[self.gammaVolumeNode.GetID()] = self.gammaPlotSeriesNode
+      # Plan dose
+      if self.planDoseVolumeNode:
+          if not hasattr(self, 'planDosePlotSeriesNode'):
+              self.planDosePlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
+          if 'planDose' not in self.lineProfileLogic:
+              logic = LineProfile.LineProfileLogic()
+              logic.isSingletonParameterNode = False 
+              self.lineProfileLogic['planDose'] = logic
+          if 'planDose' not in self.lineProfileTableNode:
+              self.lineProfileTableNode['planDose'] = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+              self.lineProfileTableNode['planDose'].SetName("Planned Dose")
+          planDoseLogic = self.lineProfileLogic['planDose']
+          pn = planDoseLogic.getParameterNode()
 
-    self.lineProfileLogic.update()
-    if getattr(self, 'planDosePlotSeriesNode', None):
-        self.planDosePlotSeriesNode.SetName("Planned Dose")
-    if getattr(self, 'calibratedMeasuredPlotSeriesNode', None):
-        self.calibratedMeasuredPlotSeriesNode.SetName("Calibrated Measured Dose")
-    if getattr(self, 'gammaPlotSeriesNode', None):
-        self.gammaPlotSeriesNode.SetName("Gamma Volume")
-    
-    pcn = self.lineProfileLogic.plotChartNode
-    if pcn:
-      if hasattr(pcn, "SetShowLegend"):
-        pcn.SetShowLegend(True)
-      elif hasattr(pcn, "SetLegendVisibility"):
-        pcn.SetLegendVisibility(True)
+          # Assign nodes
+          pn.inputVolume = self.planDoseVolumeNode
+          pn.inputLine = inputLineNode
+          pn.outputTable = self.lineProfileTableNode['planDose']
+          pn.outputPlotSeries = self.planDosePlotSeriesNode
+          pn.lineResolution = lineResolution
 
-    # Build exportable [Distance(mm), Value] rows from the table
-    table = self.lineProfileTableNode.GetTable()
-    distanceCol = table.GetColumnByName("Distance") or next(
-      (table.GetColumn(ci) for ci in range(table.GetNumberOfColumns())
-       if "distance" in (table.GetColumnName(ci) or "").lower()),
-       None)
+          # Update this profile in plot and table
+          planDoseLogic.update()
+          self.planDosePlotSeriesNode.SetName("Planned Dose")
+          self.planDosePlotSeriesNode.SetColor(0.121, 0.467, 0.706)
+          if self.planDosePlotSeriesNode.GetID() not in [self.lineProfilePlotChartNode.GetNthPlotSeriesNodeID(i) for i in range(self.lineProfilePlotChartNode.GetNumberOfPlotSeriesNodes())]:
+              self.lineProfilePlotChartNode.AddAndObservePlotSeriesNodeID(self.planDosePlotSeriesNode.GetID())
 
-    if not table or table.GetNumberOfRows() == 0:
-      self.lineProfileData = None
-      return
-    
-    # Pick the first intensity column (one per input volume):
-    intensityColName = None
-    for ci in range(table.GetNumberOfColumns()):
-      name = table.GetColumnName(ci)
-      if name.startswith("Intensity"):
-        intensityColName = name
-        break
+      # Calibrated measured gel volume
+      if self.calibratedMeasuredVolumeNode:
+          if not hasattr(self, 'calibratedMeasuredPlotSeriesNode'):
+              self.calibratedMeasuredPlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
+          if 'calibratedMeasured' not in self.lineProfileLogic:
+              logic = LineProfile.LineProfileLogic()
+              logic.isSingletonParameterNode = False
+              self.lineProfileLogic['calibratedMeasured'] = logic
+          if 'calibratedMeasured' not in self.lineProfileTableNode:
+              self.lineProfileTableNode['calibratedMeasured'] = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+              self.lineProfileTableNode['calibratedMeasured'].SetName("Calibrated Measured Dose Line Profile")
+          calibratedMeasuredLogic = self.lineProfileLogic['calibratedMeasured']
+          pn = calibratedMeasuredLogic.getParameterNode()
 
-    if intensityColName is not None and distanceCol is not None:
-      intensityCol = table.GetColumnByName(intensityColName)
-      n = table.GetNumberOfRows()
-      self.lineProfileData = [[distanceCol.GetValue(i), intensityCol.GetValue(i)] for i in range(n)]
-    else:
-      self.lineProfileData = None
+          # Assign nodes
+          pn.inputVolume = self.calibratedMeasuredVolumeNode
+          pn.inputLine = inputLineNode
+          pn.outputTable = self.lineProfileTableNode['calibratedMeasured']
+          pn.outputPlotSeries = self.calibratedMeasuredPlotSeriesNode
+          pn.lineResolution = lineResolution
 
+          # Update this profile in plot and table
+          calibratedMeasuredLogic.update()
+          self.calibratedMeasuredPlotSeriesNode.SetName("Calibrated Measured Dose")
+          self.calibratedMeasuredPlotSeriesNode.SetColor(1.0, 0.498, 0.055)
+
+          if self.calibratedMeasuredPlotSeriesNode.GetID() not in [self.lineProfilePlotChartNode.GetNthPlotSeriesNodeID(i) for i in range(self.lineProfilePlotChartNode.GetNumberOfPlotSeriesNodes())]:
+              self.lineProfilePlotChartNode.AddAndObservePlotSeriesNodeID(self.calibratedMeasuredPlotSeriesNode.GetID())
+
+      # Gamma volume
+      if self.gammaVolumeNode:
+          if not hasattr(self, 'gammaPlotSeriesNode'):
+              self.gammaPlotSeriesNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotSeriesNode")
+          if 'gamma' not in self.lineProfileLogic:
+              logic = LineProfile.LineProfileLogic()
+              logic.isSingletonParameterNode = False
+              self.lineProfileLogic['gamma'] = logic
+          if 'gamma' not in self.lineProfileTableNode:
+              self.lineProfileTableNode['gamma'] = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+              self.lineProfileTableNode['gamma'].SetName("Gamma Line Profile")
+          gammaLogic = self.lineProfileLogic['gamma']
+          pn = gammaLogic.getParameterNode()
+
+          # Assign nodes
+          pn.inputVolume = self.gammaVolumeNode
+          pn.inputLine = inputLineNode
+          pn.outputTable = self.lineProfileTableNode['gamma']
+          pn.outputPlotSeries = self.gammaPlotSeriesNode
+          pn.lineResolution = lineResolution
+
+          # Update this profile in plot and table
+          gammaLogic.update()
+          self.gammaPlotSeriesNode.SetName("Gamma Volume")
+          self.gammaPlotSeriesNode.SetColor(0.173, 0.627, 0.173)
+
+          if self.gammaPlotSeriesNode.GetID() not in [self.lineProfilePlotChartNode.GetNthPlotSeriesNodeID(i) for i in range(self.lineProfilePlotChartNode.GetNumberOfPlotSeriesNodes())]:
+              self.lineProfilePlotChartNode.AddAndObservePlotSeriesNodeID(self.gammaPlotSeriesNode.GetID())
+
+      # Show plot
+      slicer.modules.plots.logic().ShowChartInLayout(self.lineProfilePlotChartNode)
+      plotWidget = slicer.app.layoutManager().plotWidget(0)
+      if plotWidget:
+          plotWidget.plotView().fitToContent()
+      self.lineProfilePlotChartNode.SetLegendVisibility(True)
+
+      # Build exportable [Distance (mm), Value] rows from the table
+      if 'planDose' in self.lineProfileTableNode:
+          table = self.lineProfileTableNode['planDose'].GetTable()
+          if not table or table.GetNumberOfRows() == 0:
+              self.lineProfileData = None
+          else:
+              numberOfRows = table.GetNumberOfRows()
+              self.lineProfileData = [[table.GetValue(rowIndex, 0), table.GetValue(rowIndex, 1)] for rowIndex in range(numberOfRows)]
+      else:
+          self.lineProfileData = None
+          
   #------------------------------------------------------------------------------
   def onLegendVisibilityToggled(self, on):
-    if self.lineProfileLogic.plotChartNode is None:
+    if self.lineProfilePlotChartNode is None:
       message = 'Need to create line profile first'
       logging.error(message)
       qt.QMessageBox.critical(None, 'Error', message)
       return
 
-    self.lineProfileLogic.plotChartNode.SetLegendVisibility(on)
+    self.lineProfilePlotChartNode.SetLegendVisibility(on)
 
   #------------------------------------------------------------------------------
   def onSelectLineProfileParameters(self):
@@ -2414,9 +2462,9 @@ class GelDosimetryAnalysis(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    parent.title = "Gel Dosimetry Analysis"
+    parent.title = "Optical CT Gel Dosimetry Analysis"
     parent.categories = ["Slicelets"]
-    parent.dependencies = ["GelDosimetryAnalysisAlgo", "DicomRtImportExport", "VffFileReader", "DoseComparison", "BRAINSFit", "BRAINSResample", "Markups", "DataProbe"]
+    parent.dependencies = ["DicomRtImportExport", "VffFileReader", "DoseComparison", "BRAINSFit", "BRAINSResample", "Markups", "DataProbe","LineProfile"]
     parent.contributors = ["Csaba Pinter (Queen's University), Mattea Welch (Queen's University), Jennifer Andrea (Queen's University), Kevin Alexander (Kingston General Hospital)"] # replace with "Firstname Lastname (Org)"
     parent.helpText = "Slicelet for gel dosimetry analysis"
     parent.acknowledgementText = """
