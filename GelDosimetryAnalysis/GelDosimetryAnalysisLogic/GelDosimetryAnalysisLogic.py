@@ -23,16 +23,16 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
 
   def __init__(self):
     # Define constants
-    self.igrtToPlanningTransformName = 'igrtToPlanningTransform'
-    self.igrtToMeasuredTransformName = 'igrtToMeasuredTransform'
+    self.cbctToPlanTransformName = 'cbctToPlanTransform'
+    self.cbctToMeasuredTransformName = "cbctToMeasuredTransform"
 
     # Declare member variables (mainly for documentation)
     self.pddDataArray = None
-    self.calculatedDose = None # Computed from Pdd usinh RDF and Electron MUs
+    self.calculatedDose = None # Computed from Pdd usinf RDF and Electron MUs
     self.calibrationDataArray = None
     self.calibrationDataAlignedArray = None # Calibration array registered (X shift) to the Pdd curve (for computation)
     self.calibrationDataAlignedToDisplayArray = None # Calibration array registered (X shift, Y scale, Y shift) to the Pdd curve (for visual alignment)
-    self.deltaRVsDoseFunction = None
+    self.opticalAttenuationVsDoseFunction = None
     self.calibrationPolynomialCoefficients = None # Calibration polynomial coefficients, highest power first
 
     # Set logic instance to the global variable that supplies it to the calibration curve alignment minimizer function
@@ -46,54 +46,104 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     slicer.modules.DICOMWidget.enter()
 
   # ---------------------------------------------------------------------------
-  # Use BRAINS registration to register planning volume to IGRT volume
-  # and apply the result to the planning volume and PlanDose
-  def registerPlanningToIGRTAutomatic(self, planningVolumeID, igrtVolumeID):
+  # Use BRAINS registration to register PlanCT to CBCT volume
+  # and apply the result to the PlanCT and PlanDose
+  def registerPlanCtToCbctAutomatic(self, planCtVolumeID, cbctVolumeID):
     try:
         qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-        parametersRigid = {}
-        parametersRigid["fixedVolume"] = igrtVolumeID
-        parametersRigid["movingVolume"] = planningVolumeID
-        parametersRigid["useRigid"] = True
-        parametersRigid["initializeTransformMode"] = "useGeometryAlign"
-        parametersRigid["samplingPercentage"] = 0.0005
-        parametersRigid["minimumStepLength"] = 0.001
-        parametersRigid["maximumStepLength"] = 15 # Start with long-range translations
-        parametersRigid["relaxationFactor"] = 0.8 # Relax quickly
-        parametersRigid["translationScale"] = 1000000 # Suppress rotation
 
-        # Set output transform
+        planCtNode = slicer.mrmlScene.GetNodeByID(planCtVolumeID)
+        cbctNode = slicer.mrmlScene.GetNodeByID(cbctVolumeID)
+        logging.info(f"planCtVolumeID: {planCtVolumeID}, name: {planCtNode.GetName() if planCtNode else 'NOT FOUND'}")
+        logging.info(f"cbctVolumeID: {cbctVolumeID}, name: {cbctNode.GetName() if cbctNode else 'NOT FOUND'}")
+
+        parametersRigid = {
+            "fixedVolume": cbctVolumeID,
+            "movingVolume": planCtVolumeID,
+            "useRigid": True,
+            "initializeTransformMode": "useGeometryAlign",
+            "samplingPercentage": 0.0005,
+            "minimumStepLength": 0.001,
+            "maximumStepLength": 15,
+            "relaxationFactor": 0.8,
+            "translationScale": 1000000
+        }
+
         try:
-            igrtToPlanningTransformNode = slicer.util.getNode(self.igrtToPlanningTransformName)
+            cbctToPlanTransformNode = slicer.util.getNode(self.cbctToPlanTransformName)
         except:
-            igrtToPlanningTransformNode = slicer.vtkMRMLLinearTransformNode()
-            slicer.mrmlScene.AddNode(igrtToPlanningTransformNode)
-            igrtToPlanningTransformNode.SetName(self.igrtToPlanningTransformName)
-        parametersRigid["linearTransform"] = igrtToPlanningTransformNode.GetID()
+            cbctToPlanTransformNode = slicer.vtkMRMLLinearTransformNode()
+            slicer.mrmlScene.AddNode(cbctToPlanTransformNode)
+            cbctToPlanTransformNode.SetName(self.cbctToPlanTransformName)
 
-        # Runs the brainsfit registration
-        brainsFit = slicer.modules.brainsfit
-        cliBrainsFitRigidNode = None
-        cliBrainsFitRigidNode = slicer.cli.run(brainsFit, None, parametersRigid)
+        parametersRigid["linearTransform"] = cbctToPlanTransformNode.GetID()
+
+        cliBrainsFitRigidNode = slicer.cli.run(slicer.modules.brainsfit, None, parametersRigid)
 
         waitCount = 0
         while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < 200:
             slicer.app.processEvents()
             time.sleep(0.1)
-            logging.info(f"Registering planning volume to IGRT volume... iteration {waitCount}")
+            logging.info(f"Registering PlanCT to CBCT... iteration {waitCount}")
             waitCount += 1
+        
+        finalStatus = cliBrainsFitRigidNode.GetStatusString()
+        logging.info(f"BrainsFit final status: {finalStatus}")
+
+        if waitCount >= 200 and finalStatus not in ('Completed', 'CompletedWithErrors'):
+            logging.error("BrainsFit timed out after 20 seconds")
+            raise RuntimeError("BrainsFit registration timed out")
+        
         logging.info("Rigid registration completed")
         qt.QApplication.restoreOverrideCursor()
 
-        if not igrtToPlanningTransformNode:
+        if not cbctToPlanTransformNode:
             logging.error("Registration failed: transform is None")
             return None
-        
-        # Apply to planning volume
-        # planningNode = slicer.mrmlScene.GetNodeByID(planningVolumeID)
-        # planningNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
 
-        return igrtToPlanningTransformNode
+       #matrix = vtk.vtkMatrix4x4()
+       #cbctToPlanTransformNode.GetMatrixTransformToParent(matrix)
+       #matrix.Invert()
+       #cbctToPlanTransformNode.SetMatrixTransformToParent(matrix)
+
+        # Apply to PlanCT
+        planCtNode = slicer.mrmlScene.GetNodeByID(planCtVolumeID)
+        planCtNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+
+        # Print matrix for debug
+        matrix = vtk.vtkMatrix4x4()
+        cbctToPlanTransformNode.GetMatrixTransformToParent(matrix)
+        
+
+        # slicer.vtkSlicerTransformLogic().hardenTransform(planCtNode)
+
+        #  Apply to PlanDose
+        # planDoseNode = slicer.util.getFirstNodeByClassByName('vtkMRMLScalarVolumeNode', 'PlanDose')
+        # if planDoseNode:
+          # planDoseNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+        #else:
+          #logging.info("PlanDose volume not found in scene — skipping dose transform.")
+
+        #  Apply to PlanDose (more flexible search)
+        planDoseNode = None
+        
+        # First try: exact "PlanDose"
+        try:
+           planDoseNode = slicer.util.getNode('PlanDose')
+        except slicer.util.MRMLNodeNotFoundException:
+        # Fallback: find any scalar volume with "Dose" in its name
+          for node in slicer.mrmlScene.GetNodesByClass("vtkMRMLScalarVolumeNode"):
+            if "Dose" in node.GetName():
+              planDoseNode = node
+              logging.info(f"Using {node.GetName()} as PlanDose substitute")
+              break
+           
+        if planDoseNode:
+          planDoseNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
+        else:
+          logging.warning("No PlanDose volume found — skipping dose transform.")
+
+        return cbctToPlanTransformNode
 
     except Exception as e:
         import traceback
@@ -102,21 +152,21 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
         return None
 
   # ---------------------------------------------------------------------------
-  def registerPlanningToIGRTLandmark(self, planningFiducialListID, igrtFiducialListID):
+  def registerPlanCtToCbctLandmark(self, planCtFiducialListID, cbctFiducialListID):
     try:
       qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
       parametersFiducial = {}
-      parametersFiducial["fixedLandmarks"] = igrtFiducialListID
-      parametersFiducial["movingLandmarks"] = planningFiducialListID
+      parametersFiducial["fixedLandmarks"] = cbctFiducialListID
+      parametersFiducial["movingLandmarks"] = planCtFiducialListID
 
       # Create linear transform which will store the registration transform
       try:
-        igrtToPlanningTransformNode = slicer.util.getNode(self.igrtToPlanningTransformName)
+        cbctToPlanTransformNode = slicer.util.getNode(self.cbctToPlanTransformName)
       except:
-        igrtToPlanningTransformNode = slicer.vtkMRMLLinearTransformNode()
-        slicer.mrmlScene.AddNode(igrtToPlanningTransformNode)
-        igrtToPlanningTransformNode.SetName(self.igrtToPlanningTransformName)
-      parametersFiducial["saveTransform"] = igrtToPlanningTransformNode.GetID()
+        cbctToPlanTransformNode = slicer.vtkMRMLLinearTransformNode()
+        slicer.mrmlScene.AddNode(cbctToPlanTransformNode)
+        cbctToPlanTransformNode.SetName(self.cbctToPlanTransformName)
+      parametersFiducial["saveTransform"] = cbctToPlanTransformNode.GetID()
       parametersFiducial["transformType"] = "Rigid"
 
       # Run fiducial registration
@@ -127,42 +177,43 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
       waitCount = 0
       while cliFiducialRegistrationRigidNode.GetStatusString() != 'Completed' and waitCount < 200:
          slicer.app.processEvents()
+         logging.info(f"Registering PlanCT to CBCT... iteration {waitCount}")
          time.sleep(0.1)
-         logging.info(f"Registering planning volume to IGRT volume... iteration {waitCount}")
          waitCount += 1
       logging.info("Rigid registration finished")
+
       qt.QApplication.restoreOverrideCursor()
 
       if cliFiducialRegistrationRigidNode.GetStatusString() != 'Completed':
         slicer.util.errorDisplay("Registration failed.")
         return None
 
-      # Apply transform to planning fiducials
-      planningFiducialsNode = slicer.mrmlScene.GetNodeByID(planningFiducialListID)
-      planningFiducialsNode.SetAndObserveTransformNodeID(igrtToPlanningTransformNode.GetID())
+      # Apply transform to PLANCT fiducials
+      planCtFiducialsNode = slicer.mrmlScene.GetNodeByID(planCtFiducialListID)
+      planCtFiducialsNode.SetAndObserveTransformNodeID(cbctToPlanTransformNode.GetID())
 
-      return [igrtToPlanningTransformNode, cliFiducialRegistrationRigidNode.GetParameterAsString('rms')]
+      return [cbctToPlanTransformNode, cliFiducialRegistrationRigidNode.GetParameterAsString('rms')]
 
     except Exception as e:
       import traceback
       traceback.print_exc()
 
   # ---------------------------------------------------------------------------
-  def registerMeasuredToIGRT(self, measuredFiducialListID, igrtFiducialListID):
+  def registerMeasuredToCbct(self, measuredFiducialListID, cbctFiducialListID):
     try:
       qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
       parametersFiducial = {}
-      parametersFiducial["fixedLandmarks"] = igrtFiducialListID
+      parametersFiducial["fixedLandmarks"] = cbctFiducialListID
       parametersFiducial["movingLandmarks"] = measuredFiducialListID
 
       # Create linear transform which will store the registration transform
       try:
-        igrtToMeasuredTransformNode = slicer.util.getNode(self.igrtToMeasuredTransformName)
+        cbctToMeasuredTransformNode = slicer.util.getNode(self.cbctToMeasuredTransformName)
       except:
-        igrtToMeasuredTransformNode = slicer.vtkMRMLLinearTransformNode()
-        slicer.mrmlScene.AddNode(igrtToMeasuredTransformNode)
-        igrtToMeasuredTransformNode.SetName(self.igrtToMeasuredTransformName)
-      parametersFiducial["saveTransform"] = igrtToMeasuredTransformNode.GetID()
+        cbctToMeasuredTransformNode = slicer.vtkMRMLLinearTransformNode()
+        slicer.mrmlScene.AddNode(cbctToMeasuredTransformNode)
+        cbctToMeasuredTransformNode.SetName(self.cbctToMeasuredTransformName)
+      parametersFiducial["saveTransform"] = cbctToMeasuredTransformNode.GetID()
       parametersFiducial["transformType"] = "Rigid"
 
       # Run fiducial registration
@@ -173,8 +224,8 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
       waitCount = 0
       while cliFiducialRegistrationRigidNode.GetStatusString() != 'Completed' and waitCount < 200:
          slicer.app.processEvents()
+         slicer.util.showStatusMessage(f"Registering MEASURED to CBCT... ({waitCount})")
          time.sleep(0.1)
-         logging.info(f"Registering MEASURED to IGRT volume... ({waitCount})")
          waitCount += 1
       logging.info("Figudical registration finished")
       qt.QApplication.restoreOverrideCursor()
@@ -184,63 +235,41 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
         return None
 
       # Apply transform to MEASURED fiducials
-      igrtFiducialsNode = slicer.mrmlScene.GetNodeByID(measuredFiducialListID)
-      igrtFiducialsNode.SetAndObserveTransformNodeID(igrtToMeasuredTransformNode.GetID())
+      measuredFiducialsNode = slicer.mrmlScene.GetNodeByID(measuredFiducialListID)
+      measuredFiducialsNode.SetAndObserveTransformNodeID(cbctToMeasuredTransformNode.GetID())
 
       return cliFiducialRegistrationRigidNode.GetParameterAsString('rms')
     except Exception as e:
       import traceback
       traceback.print_exc()
   
-  # ---------------------------------------------------------------------------
-  def registerMeasuredToIGRTAutomatic(self, measuredVolumeID, igrtVolumeID):
-    try:
-      qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-      parametersRigid = {}
-      parametersRigid["fixedVolume"] = igrtVolumeID
-      parametersRigid["movingVolume"] = measuredVolumeID
-      parametersRigid["useRigid"] = True
-      parametersRigid["initializeTransformMode"] = "useGeometryAlign"
-      parametersRigid["samplingPercentage"] = 0.0005
-      parametersRigid["minimumStepLength"] = 0.0001
-      parametersRigid["maximumStepLength"] = 15 # Start with long-range translations
-      parametersRigid["relaxationFactor"] = 0.8 # Relax quickly
-      parametersRigid["translationScale"] = 1000000 # Suppress rotation
-
-      try:
-        igrtToMeasuredTransformNode = slicer.util.getNode(self.igrtToMeasuredTransformName)
-      except:
-        igrtToMeasuredTransformNode = slicer.vtkMRMLLinearTransformNode()
-        slicer.mrmlScene.AddNode(igrtToMeasuredTransformNode)
-        igrtToMeasuredTransformNode.SetName(self.igrtToMeasuredTransformName)
-      parametersRigid["linearTransform"] = igrtToMeasuredTransformNode.GetID()
-
-      # Runs the brainsfit registration
-      brainsFit = slicer.modules.brainsfit
-      cliBrainsFitRigidNode = None
-      cliBrainsFitRigidNode = slicer.cli.run(brainsFit, None, parametersRigid)
-
-      waitCount = 0
-      while cliBrainsFitRigidNode.GetStatusString() != 'Completed' and waitCount < 200:
-          slicer.app.processEvents()
-          time.sleep(0.1)
-          logging.info(f"Registering MEASURED to IGRT volume... iteration {waitCount}")
-          waitCount += 1
-      logging.info("Rigid registration completed")
-      qt.QApplication.restoreOverrideCursor()
-
-      if not igrtToMeasuredTransformNode:
-          logging.error("Registration failed: transform is None")
-          return None
-
-      return igrtToMeasuredTransformNode
-
-    except Exception as e:
-      import traceback
-      traceback.print_exc()
-      qt.QApplication.restoreOverrideCursor()
+    # ---------------------------------------------------------------------------
+  def getMaskBinaryLabelmap(self, segmentationNode, segmentID):
+    """
+    Ensure a binary labelmap exists for the selected segment.
+    Returns vtkOrientedImageData if successful, otherwise None.
+    """
+    if not segmentationNode or not segmentID:
+      logging.error("Segmentation node or segmentID is invalid")
       return None
-  
+
+    # Make sure binary labelmap representation exists
+    segmentation = segmentationNode.GetSegmentation()
+    if not segmentation.ContainsRepresentation(slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()):
+      segmentation.CreateRepresentation(slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName())
+
+    segment = segmentation.GetSegment(segmentID)
+    if not segment:
+      logging.error(f"Segment ID {segmentID} not found in segmentation {segmentationNode.GetName()}")
+      return None
+
+    labelmap = segment.GetRepresentation(slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName())
+    if not labelmap:
+      logging.error("No binary labelmap representation found for segment")
+      return None
+
+    return labelmap
+
   # ---------------------------------------------------------------------------
   def loadPdd(self, fileName):
     if fileName == None or fileName == '':
@@ -273,9 +302,9 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     return True
 
   # ---------------------------------------------------------------------------
-  def getMeanDeltaROfCentralCylinder(self, calibrationVolumeNodeID, centralRadiusMm):
+  def getMeanOpticalAttenuationOfCentralCylinder(self, calibrationVolumeNodeID, centralRadiusMm):
     # Format of output array: the following values are provided for each slice:
-    # depth (cm), mean R1/R2 on the slice at depth, std.dev. of R1/R2
+    #   depth (cm), mean optical attenuation on the slice at depth, std.dev. of optical attenuation
     qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
 
     calibrationVolume = slicer.util.getNode(calibrationVolumeNodeID)
@@ -284,7 +313,7 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     # Get image properties needed for the calculation
     calibrationVolumeSliceThicknessCm = calibrationVolume.GetSpacing()[2] / 10.0
     if calibrationVolume.GetSpacing()[0] != calibrationVolume.GetSpacing()[1]:
-      logging.warning('Image data X and Y spacing differ! This is not supported, the mean R1/R2 data may be skewed')
+      logging.warning('Image data X and Y spacing differ! This is not supported, the mean optical attenuation data may be skewed')
     calibrationVolumeInPlaneSpacing = calibrationVolume.GetSpacing()[0]
 
     centralRadiusPixel = int(numpy.ceil(centralRadiusMm / calibrationVolumeInPlaneSpacing))
@@ -300,124 +329,43 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     numpyImageDataArray = numpy_support.vtk_to_numpy(calibrationVolumeImageDataAsScalars)
     numpyImageDataArray = numpy.reshape(numpyImageDataArray, (calibrationVolumeImageData.GetExtent()[1]+1, calibrationVolumeImageData.GetExtent()[3]+1, calibrationVolumeImageData.GetExtent()[5]+1), 'F')
 
-    deltaROfCentralCylinderTable = numpy.zeros((numberOfSlices, 3))
+    opticalAttenuationOfCentralCylinderTable = numpy.zeros((numberOfSlices, 3))
     sliceNumber = 0
     z = calibrationVolumeImageData.GetExtent()[5]
     zMin = calibrationVolumeImageData.GetExtent()[4]
     while z  >= zMin:
       totalPixels = 0
-      totalDeltaR = 0
-      listOfDeltaRValues = []
-      meanDeltaR = 0
+      totalOpticalAttenuation = 0
+      listOfOpticalDensities = []
+      meanOpticalAttenuation = 0
 
       for y in range(floor(centerYCoordinate - centralRadiusPixel + 0.5), ceil(centerYCoordinate + centralRadiusPixel + 0.5)):
         for x in range(floor(centerXCoordinate - centralRadiusPixel + 0.5), ceil(centerXCoordinate + centralRadiusPixel + 0.5)):
           distanceOfX = abs(x - centerXCoordinate)
           distanceOfY = abs(y - centerYCoordinate)
           if ((distanceOfX + distanceOfY) <= centralRadiusPixel) or ((pow(distanceOfX, 2) + pow(distanceOfY, 2)) <= pow(centralRadiusPixel, 2)):
-            currentDeltaR = numpyImageDataArray[x, y, z]
-            listOfDeltaRValues.append(currentDeltaR)
-            totalDeltaR = totalDeltaR + currentDeltaR
+            currentOpticalAttenuation = numpyImageDataArray[x, y, z]
+            listOfOpticalDensities.append(currentOpticalAttenuation)
+            totalOpticalAttenuation = totalOpticalAttenuation + currentOpticalAttenuation
             totalPixels+=1
 
-      meanDeltaR = totalDeltaR / totalPixels
-      standardDeviationDeltaR	= 0
-      for currentDeltaRValue in range(totalPixels):
-        standardDeviationDeltaR += pow((listOfDeltaRValues[currentDeltaRValue] - meanDeltaR), 2)
-      standardDeviationDeltaR = sqrt(standardDeviationDeltaR / totalPixels)
-      deltaROfCentralCylinderTable[sliceNumber, 0] = sliceNumber * calibrationVolumeSliceThicknessCm
-      deltaROfCentralCylinderTable[sliceNumber, 1] = meanDeltaR
-      deltaROfCentralCylinderTable[sliceNumber, 2] = standardDeviationDeltaR
+      meanOpticalAttenuation = totalOpticalAttenuation / totalPixels
+      standardDeviationOpticalAttenuation	= 0
+      for currentOpticalAttenuationValue in range(totalPixels):
+        standardDeviationOpticalAttenuation += pow((listOfOpticalDensities[currentOpticalAttenuationValue] - meanOpticalAttenuation), 2)
+      standardDeviationOpticalAttenuation = sqrt(standardDeviationOpticalAttenuation / totalPixels)
+      opticalAttenuationOfCentralCylinderTable[sliceNumber, 0] = sliceNumber * calibrationVolumeSliceThicknessCm
+      opticalAttenuationOfCentralCylinderTable[sliceNumber, 1] = meanOpticalAttenuation
+      opticalAttenuationOfCentralCylinderTable[sliceNumber, 2] = standardDeviationOpticalAttenuation
+      # logging.debug('Slice (cm): ' + repr(sliceNumber*calibrationVolumeSliceThicknessCm))
+      # logging.debug('  Mean: ' + repr(meanOpticalAttenuation) + '  StdDev: ' + repr(standardDeviationOpticalAttenuation))
       sliceNumber += 1
       z -= 1
 
     qt.QApplication.restoreOverrideCursor()
     logging.info('CALIBRATION data has been successfully parsed with averaging radius {0}mm ({1}px)'.format(centralRadiusMm, centralRadiusPixel))
-    self.calibrationDataArray = deltaROfCentralCylinderTable
+    self.calibrationDataArray = opticalAttenuationOfCentralCylinderTable
     return True
-
-  # ---------------------------------------------------------------------------
-  def sampleCalibrationAlongLine(self, measuredVolumeNode, rulerNode, samplingRadiusMm, numberOfSamples=100):
-    import numpy as np
-    
-    try:
-        # Get line endpoints
-        startPoint_RAS = [0, 0, 0]
-        endPoint_RAS = [0, 0, 0]
-        rulerNode.GetNthControlPointPosition(0, startPoint_RAS)
-        rulerNode.GetNthControlPointPosition(1, endPoint_RAS)
-        
-        # Calculate line direction and length
-        lineVector = np.array(endPoint_RAS) - np.array(startPoint_RAS)
-        lineLength = np.linalg.norm(lineVector)
-        lineDirection = lineVector / lineLength
-        
-        # Get two perpendicular directions for radius sampling
-        if abs(lineDirection[2]) < 0.9:
-            perp1 = np.cross(lineDirection, [0, 0, 1])
-        else:
-            perp1 = np.cross(lineDirection, [1, 0, 0])
-        perp1 = perp1 / np.linalg.norm(perp1)
-        perp2 = np.cross(lineDirection, perp1)
-        perp2 = perp2 / np.linalg.norm(perp2)
-        
-        # Get image data and transform
-        imageData = measuredVolumeNode.GetImageData()
-        rasToIJK = vtk.vtkMatrix4x4()
-        measuredVolumeNode.GetRASToIJKMatrix(rasToIJK)
-        
-        # Sample along the line
-        calibrationData = []
-        
-        for i in range(numberOfSamples):
-            # Position along the line
-            t = i / (numberOfSamples - 1.0)
-            centerPoint_RAS = np.array(startPoint_RAS) + t * lineVector
-            depth_cm = t * lineLength / 10.0  # Convert mm to cm
-            
-            # Sample in a circle around this point
-            numRadialSamples = 12  # Number of samples around the circle
-            numRadiusSamples = 5   # Number of samples along the radius
-            values = []
-            
-            for radiusStep in range(1, numRadiusSamples + 1):
-                currentRadius = samplingRadiusMm * (radiusStep / numRadiusSamples)
-                
-                for angle in np.linspace(0, 2*np.pi, numRadialSamples, endpoint=False):
-                    # Calculate offset point
-                    offset = currentRadius * (np.cos(angle) * perp1 + np.sin(angle) * perp2)
-                    samplePoint_RAS = centerPoint_RAS + offset
-                    
-                    # Convert to IJK coordinates
-                    point_IJK = [0, 0, 0, 1]
-                    rasToIJK.MultiplyPoint([samplePoint_RAS[0], samplePoint_RAS[1], samplePoint_RAS[2], 1.0], point_IJK)
-                    
-                    # Get voxel value with interpolation
-                    i_idx = int(round(point_IJK[0]))
-                    j_idx = int(round(point_IJK[1]))
-                    k_idx = int(round(point_IJK[2]))
-                    
-                    dims = imageData.GetDimensions()
-                    if (0 <= i_idx < dims[0] and 0 <= j_idx < dims[1] and 0 <= k_idx < dims[2]):
-                        value = imageData.GetScalarComponentAsDouble(i_idx, j_idx, k_idx, 0)
-                        values.append(value)
-            
-            # Average all sampled values at this depth
-            if len(values) > 0:
-                meanValue = np.mean(values)
-                calibrationData.append([depth_cm, meanValue])
-        
-        # Store the calibration data
-        self.calibrationDataArray = np.array(calibrationData)
-        
-        logging.info(f'Line sampling complete: {len(calibrationData)} points sampled')
-        return True
-        
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        logging.error(f'Line sampling failed: {str(e)}')
-        return False
 
   # ---------------------------------------------------------------------------
   def alignPddToCalibration(self):
@@ -427,6 +375,7 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     # Check the input arrays
     if self.pddDataArray.size == 0 or self.calibrationDataArray.size == 0:
       logging.error('Pdd or calibration data is empty')
+      qt.QApplication.restoreOverrideCursor()
       return error
 
     # Discard values of 0 from both ends of the data (it is considered invalid)
@@ -515,8 +464,10 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     # Removes outliers starting from the two ends of a function stored in an array
     # The input array has to have two columns, the first column containing the X values, the second the Y values
     # Parameters:
-    #   - outlierThreshold: Multiplier of mean of differences. If a value is more than this much different to its neighbor than it is an outlier
-    #   - minimumMeanDifferenceInFractionOfMaxValueThreshold: The array is considered not to contain outliers if the mean differences are less than the maximum value multiplied by this value
+    #   outlierThreshold: Multiplier of mean of differences. If a value is more than this much different
+    #     to its neighbor than it is an outlier
+    #   minimumMeanDifferenceInFractionOfMaxValueThreshold: The array is considered not to contain outliers
+    #     if the mean differences are less than the maximum value multiplied by this value
     numberOfFoundOutliers = -1
     numberOfIterations = 0
 
@@ -587,40 +538,40 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     return True
 
   # ---------------------------------------------------------------------------
-  def createDeltaRVsDoseFunction(self, pddRangeMin=-1000, pddRangeMax=1000):
+  def createOpticalAttenuationVsDoseFunction(self, pddRangeMin=-1000, pddRangeMax=1000):
     # Create interpolator for aligned calibration function to allow getting the values for the
     # depths present in the calculated dose function
     interpolator = vtk.vtkPiecewiseFunction()
     calibrationAlignedNumberOfRows = self.calibrationDataAlignedArray.shape[0]
     for calibrationRowIndex in range(calibrationAlignedNumberOfRows):
       currentDose = self.calibrationDataAlignedArray[calibrationRowIndex, 0]
-      currentDeltaR = self.calibrationDataAlignedArray[calibrationRowIndex, 1]
-      interpolator.AddPoint(currentDose, currentDeltaR)
+      currentOpticalAttenuation = self.calibrationDataAlignedArray[calibrationRowIndex, 1]
+      interpolator.AddPoint(currentDose, currentOpticalAttenuation)
     interpolatorRange = interpolator.GetRange()
 
-    # Get the R1/R2 and the dose values from the aligned calibration function and the calculated dose
-    self.deltaRVsDoseFunction = numpy.zeros(self.calculatedDose.shape)
+    # Get the optical attenuation and the dose values from the aligned calibration function and the calculated dose
+    self.opticalAttenuationVsDoseFunction = numpy.zeros(self.calculatedDose.shape)
     doseNumberOfRows = self.calculatedDose.shape[0]
     for doseRowIndex in range(doseNumberOfRows):
       # Reverse the function so that smallest dose comes first (which decreases with depth)
       currentDepth = self.calculatedDose[doseRowIndex, 0]
       if currentDepth >= interpolatorRange[0] and currentDepth <= interpolatorRange[1] and currentDepth >= pddRangeMin and currentDepth <= pddRangeMax:
-        self.deltaRVsDoseFunction[doseNumberOfRows-doseRowIndex-1, 0] = interpolator.GetValue(currentDepth)
-        self.deltaRVsDoseFunction[doseNumberOfRows-doseRowIndex-1, 1] = self.calculatedDose[doseRowIndex, 1]
+        self.opticalAttenuationVsDoseFunction[doseNumberOfRows-doseRowIndex-1, 0] = interpolator.GetValue(currentDepth)
+        self.opticalAttenuationVsDoseFunction[doseNumberOfRows-doseRowIndex-1, 1] = self.calculatedDose[doseRowIndex, 1]
       else:
         # If the depth value is out of range then delete the last row (it will never be set, but we need to remove the zeros from the end)
-        self.deltaRVsDoseFunction = numpy.delete(self.deltaRVsDoseFunction, doseNumberOfRows-doseRowIndex-1, 0)
+        self.opticalAttenuationVsDoseFunction = numpy.delete(self.opticalAttenuationVsDoseFunction, doseNumberOfRows-doseRowIndex-1, 0)
 
   # ---------------------------------------------------------------------------
-  def fitCurveToDeltaRVsDoseFunctionArray(self, orderOfFittedPolynomial):
-    # Fit polynomial on the cleaned R1/R2 vs dose function array
-    deltaRVsDoseNumberOfRows = self.deltaRVsDoseFunction.shape[0]
-    deltaRData = numpy.zeros((deltaRVsDoseNumberOfRows))
-    doseData = numpy.zeros((deltaRVsDoseNumberOfRows))
-    for rowIndex in range(deltaRVsDoseNumberOfRows):
-      deltaRData[rowIndex] = self.deltaRVsDoseFunction[rowIndex, 0]
-      doseData[rowIndex] = self.deltaRVsDoseFunction[rowIndex, 1]
-    fittingResult = numpy.polyfit(deltaRData, doseData, orderOfFittedPolynomial, None, True)
+  def fitCurveToOpticalAttenuationVsDoseFunctionArray(self, orderOfFittedPolynomial):
+    # Fit polynomial on the cleaned OA vs dose function array
+    oaVsDoseNumberOfRows = self.opticalAttenuationVsDoseFunction.shape[0]
+    opticalAttenuationData = numpy.zeros((oaVsDoseNumberOfRows))
+    doseData = numpy.zeros((oaVsDoseNumberOfRows))
+    for rowIndex in range(oaVsDoseNumberOfRows):
+      opticalAttenuationData[rowIndex] = self.opticalAttenuationVsDoseFunction[rowIndex, 0]
+      doseData[rowIndex] = self.opticalAttenuationVsDoseFunction[rowIndex, 1]
+    fittingResult = numpy.polyfit(opticalAttenuationData, doseData, orderOfFittedPolynomial, None, True)
     self.calibrationPolynomialCoefficients = fittingResult[0]
     self.fittingResiduals = fittingResult[1]
     logging.info('Coefficients of the fitted polynomial (highest order first): ' + repr(self.calibrationPolynomialCoefficients.tolist()))
@@ -632,31 +583,34 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     import csv, os
     from time import gmtime, strftime
 
-    directory = qt.QFileDialog.getExistingDirectory(None, "Select directory to save calibration data", slicer.app.temporaryPath)
+    directory = qt.QFileDialog.getExistingDirectory(
+        None,
+        "Select directory to save calibration data",
+        slicer.app.temporaryPath
+    )
     if not directory:
         slicer.util.delayDisplay("Export cancelled.")
         return
 
     timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
-    curveFile = os.path.join(directory, f"{timestamp}_R1R2VsDosePoints.csv")
+    curveFile = os.path.join(directory, f"{timestamp}_oaVsDosePoints.csv")
     coeffFile = os.path.join(directory, f"{timestamp}_CalibrationPolynomialCoefficients.csv")
 
-    # R1/R2 vs. Dose
-    if self.deltaRVsDoseFunction is not None:
+    # OA vs. Dose
+    if self.opticalAttenuationVsDoseFunction is not None:
         with open(curveFile, 'w', newline='') as fp:
             csvWriter = csv.writer(fp, delimiter=',', lineterminator='\n')
-            data = [['R1/R2','Dose']]
-            for deltaRVsDosePoint in self.deltaRVsDoseFunction:
-                data.append(deltaRVsDosePoint)
+            data = [['OpticalAttenuation','Dose']]
+            for oaVsDosePoint in self.opticalAttenuationVsDoseFunction:
+                data.append(oaVsDosePoint)
             csvWriter.writerows(data)
 
-    # Assemble file name for polynomial coefficients
+    # Calibration Polynomial Coefficients
     if hasattr(self, 'calibrationPolynomialCoefficients'):
         with open(coeffFile, 'w', newline='') as fp:
             csvWriter = csv.writer(fp, delimiter=',', lineterminator='\n')
             data = [['Order','Coefficient']]
             numOfOrders = len(self.calibrationPolynomialCoefficients)
-            # Highest order first in the coeffiicnets list
             for orderIndex in range(numOfOrders):
                 data.append([numOfOrders-orderIndex-1, self.calibrationPolynomialCoefficients[orderIndex]])
             if hasattr(self, 'fittingResiduals'):
@@ -696,15 +650,20 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
     logging.info('Calibration of MEASURED volume is successful (time: {0})'.format(end - start))
     return calibratedVolume
   
-  # ---------------------------------------------------------------------------
-  def exportLineProfileToCSV(self, lineProfileData):
+  def exportLineProfileToCSV(self, lineProfileData, directory=None):
     import csv, os
     from time import gmtime, strftime
+    import qt, slicer
 
-    directory = qt.QFileDialog.getExistingDirectory(None, "Select directory to save line profile data", slicer.app.temporaryPath)
-    if not directory:
-        slicer.util.delayDisplay("Export cancelled.")
-        return
+    if directory is None:
+        directory = qt.QFileDialog.getExistingDirectory(
+            None,
+            "Select directory to save line profile data",
+            slicer.app.temporaryPath
+        )
+        if not directory:
+            slicer.util.delayDisplay("Export cancelled.")
+            return
 
     timestamp = strftime("%Y%m%d_%H%M%S", gmtime())
     profileFile = os.path.join(directory, f"{timestamp}_LineProfile.csv")
@@ -717,8 +676,114 @@ class GelDosimetryAnalysisLogic(ScriptedLoadableModuleLogic):
             for row in lineProfileData:
                 data.append(row)
             csvWriter.writerows(data)
+
+        #slicer.util.delayDisplay(f"Line profile exported:\n{profileFile}")
+        qt.QMessageBox.information(None,"Line Profile Export",f"Line profile exported:\n{profileFile}")
         return f"File saved:\n{profileFile}"
-    return "Export failed: no data"
+    
+    else:
+        #slicer.util.delayDisplay("No line profile data available to export.")
+        qt.QMessageBox.information(None,"Line Profile Export","No line profile data available to export.")
+        return "Export failed: no data"
+
+# ---------------------------------------------------------------------------
+  def sampleCalibrationAlongLine(self, measuredVolumeNode, rulerNode, samplingRadiusMm, numberOfSamples=100):
+    """
+    Sample calibration data along a ruler line with averaging in perpendicular radius
+    
+    Parameters:
+    - measuredVolumeNode: The measured optical attenuation volume
+    - rulerNode: vtkMRMLMarkupsLineNode defining the sampling line
+    - samplingRadiusMm: Radius in mm for perpendicular averaging
+    - numberOfSamples: Number of points along the line
+    
+    Returns:
+    - True if successful, False otherwise
+    """
+    import numpy as np
+    
+    try:
+        if rulerNode.GetNumberOfControlPoints() < 2:
+          logging.warning('Ruler does not have two control points yet — skipping')
+          return False
+        
+        # Get line endpoints
+        startPoint_RAS = [0, 0, 0]
+        endPoint_RAS = [0, 0, 0]
+        rulerNode.GetNthControlPointPosition(0, startPoint_RAS)
+        rulerNode.GetNthControlPointPosition(1, endPoint_RAS)
+        
+        # Calculate line direction and length
+        lineVector = np.array(endPoint_RAS) - np.array(startPoint_RAS)
+        lineLength = np.linalg.norm(lineVector)
+        lineDirection = lineVector / lineLength
+        
+        # Get two perpendicular directions for radius sampling
+        if abs(lineDirection[2]) < 0.9:
+            perp1 = np.cross(lineDirection, [0, 0, 1])
+        else:
+            perp1 = np.cross(lineDirection, [1, 0, 0])
+        perp1 = perp1 / np.linalg.norm(perp1)
+        perp2 = np.cross(lineDirection, perp1)
+        perp2 = perp2 / np.linalg.norm(perp2)
+        
+        # Get image data and transform
+        imageData = measuredVolumeNode.GetImageData()
+        rasToIJK = vtk.vtkMatrix4x4()
+        measuredVolumeNode.GetRASToIJKMatrix(rasToIJK)
+        
+        # Sample along the line
+        calibrationData = []
+        
+        for i in range(numberOfSamples):
+            # Position along the line
+            t = i / (numberOfSamples - 1.0)
+            centerPoint_RAS = np.array(startPoint_RAS) + t * lineVector
+            depth_cm = t * lineLength / 10.0  # Convert mm to cm
+            
+            # Sample in a circle around this point
+            numRadialSamples = 12  # Number of samples around the circle
+            numRadiusSamples = 5   # Number of samples along the radius
+            values = []
+            
+            for radiusStep in range(1, numRadiusSamples + 1):
+                currentRadius = samplingRadiusMm * (radiusStep / numRadiusSamples)
+                
+                for angle in np.linspace(0, 2*np.pi, numRadialSamples, endpoint=False):
+                    # Calculate offset point
+                    offset = currentRadius * (np.cos(angle) * perp1 + np.sin(angle) * perp2)
+                    samplePoint_RAS = centerPoint_RAS + offset
+                    
+                    # Convert to IJK coordinates
+                    point_IJK = [0, 0, 0, 1]
+                    rasToIJK.MultiplyPoint([samplePoint_RAS[0], samplePoint_RAS[1], samplePoint_RAS[2], 1.0], point_IJK)
+                    
+                    # Get voxel value with interpolation
+                    i_idx = int(round(point_IJK[0]))
+                    j_idx = int(round(point_IJK[1]))
+                    k_idx = int(round(point_IJK[2]))
+                    
+                    dims = imageData.GetDimensions()
+                    if (0 <= i_idx < dims[0] and 0 <= j_idx < dims[1] and 0 <= k_idx < dims[2]):
+                        value = imageData.GetScalarComponentAsDouble(i_idx, j_idx, k_idx, 0)
+                        values.append(value)
+            
+            # Average all sampled values at this depth
+            if len(values) > 0:
+                meanValue = np.mean(values)
+                calibrationData.append([depth_cm, meanValue])
+        
+        # Store the calibration data
+        self.calibrationDataArray = np.array(calibrationData)
+        
+        logging.info(f'Line sampling complete: {len(calibrationData)} points sampled')
+        return True
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        logging.error(f'Line sampling failed: {str(e)}')
+        return False
 #
 # Function to minimize for the calibration curve alignment
 #
@@ -752,6 +817,8 @@ def curveAlignmentCalibrationFunction():
 
 # Global variable holding the logic instance for the calibration curve minimizer function
 gelDosimetryLogicInstanceGlobal = None
+
+# ---------------------------------------------------------------------------
 
 # Notes:
 # Code snippet to reload logic
