@@ -451,14 +451,14 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_resampleButton)
 
     # GRE checkbox
-    self.step1_2_1_1_useGRECheckBox = qt.QCheckBox("GRE images used for registration.")
-    self.step1_2_1_1_useGRECheckBox.toolTip = "If checked, apply the registration transform to R1 maps as a separate step"
+    self.step1_2_1_1_useGRECheckBox = qt.QCheckBox("Image from the mapping sequence used for registration.")
+    self.step1_2_1_1_useGRECheckBox.toolTip = "If checked, apply the registration transform to R1 or R2 maps as a separate step"
     self.step1_2_1_1_useGRECheckBox.enabled = False
     self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_useGRECheckBox)
 
-    # Apply transform to R1 maps
+    # Apply transform to R1/R2 maps
     self.step1_2_1_1_applyToR1Button = ctk.ctkCollapsibleButton()
-    self.step1_2_1_1_applyToR1Button.text = "Apply transform to R1 map"
+    self.step1_2_1_1_applyToR1Button.text = "Apply transform to R1 or R2 maps"
     self.step1_2_1_1_applyToR1Button.collapsed = True
     self.step1_2_1_1_applyToR1Button.visible = False
     self.step1_2_1_1_step2_registrationLayout.addRow(self.step1_2_1_1_applyToR1Button)
@@ -474,8 +474,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_2_1_1_r1PreSelector.noneEnabled = True
     self.step1_2_1_1_r1PreSelector.showHidden = False
     self.step1_2_1_1_r1PreSelector.setMRMLScene(slicer.mrmlScene)
-    self.step1_2_1_1_r1PreSelector.setToolTip("Select pre-irradiation R1 map")
-    self.step1_2_1_1_applyToR1Layout.addRow("Pre-irradiation R1 map:", self.step1_2_1_1_r1PreSelector)
+    self.step1_2_1_1_r1PreSelector.setToolTip("Select pre-irradiation R1 or R2 map")
+    self.step1_2_1_1_applyToR1Layout.addRow("Pre-irradiation R1 or R2 map:", self.step1_2_1_1_r1PreSelector)
 
     # R1 post selector
     self.step1_2_1_1_r1PostSelector = slicer.qMRMLNodeComboBox()
@@ -486,12 +486,12 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_2_1_1_r1PostSelector.noneEnabled = True
     self.step1_2_1_1_r1PostSelector.showHidden = False
     self.step1_2_1_1_r1PostSelector.setMRMLScene(slicer.mrmlScene)
-    self.step1_2_1_1_r1PostSelector.setToolTip("Select post-irradiation R1 map")
-    self.step1_2_1_1_applyToR1Layout.addRow("Post-irradiation R1 map:", self.step1_2_1_1_r1PostSelector)
+    self.step1_2_1_1_r1PostSelector.setToolTip("Select post-irradiation R1 or R2 map")
+    self.step1_2_1_1_applyToR1Layout.addRow("Post-irradiation R1 or R2 map:", self.step1_2_1_1_r1PostSelector)
 
     # Apply transform button
-    self.step1_2_1_1_applyTransformToR1Button = qt.QPushButton("Apply Transform to R1 Maps")
-    self.step1_2_1_1_applyTransformToR1Button.toolTip = "Resample R1 post-irradiation volume using the GRE registration transform"
+    self.step1_2_1_1_applyTransformToR1Button = qt.QPushButton("Apply Transform to R1 or R2 Maps")
+    self.step1_2_1_1_applyTransformToR1Button.toolTip = "Resample R1 or R2 post-irradiation volumes using the registration transform derived from the mapping sequence image"
     self.step1_2_1_1_applyToR1Layout.addRow(self.step1_2_1_1_applyTransformToR1Button)
 
     # 1.2.1.1.3. Denoising
@@ -730,14 +730,14 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_resampleButton)
 
     # GRE checkbox
-    self.step1_2_2_1_useGRECheckBox = qt.QCheckBox("GRE images used for registration.")
-    self.step1_2_2_1_useGRECheckBox.toolTip = "If checked, apply the registration transform to R1 maps as a separate step"
+    self.step1_2_2_1_useGRECheckBox = qt.QCheckBox("Image from the mapping sequence used for registration.")
+    self.step1_2_2_1_useGRECheckBox.toolTip = "If checked, apply the registration transform to R1 or R2 maps as a separate step"
     self.step1_2_2_1_useGRECheckBox.enabled = False
     self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_useGRECheckBox)
 
-    # Apply transform to R1 maps
+    # Apply transform to R1/R2 maps
     self.step1_2_2_1_applyToR1Button = ctk.ctkCollapsibleButton()
-    self.step1_2_2_1_applyToR1Button.text = "Apply transform to R1 maps"
+    self.step1_2_2_1_applyToR1Button.text = "Apply transform to R1 or R2 maps"
     self.step1_2_2_1_applyToR1Button.collapsed = True
     self.step1_2_2_1_applyToR1Button.visible = False
     self.step1_2_2_1_step2_registrationLayout.addRow(self.step1_2_2_1_applyToR1Button)
@@ -753,8 +753,8 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_2_2_1_r1PreSelector.noneEnabled = True
     self.step1_2_2_1_r1PreSelector.showHidden = False
     self.step1_2_2_1_r1PreSelector.setMRMLScene(slicer.mrmlScene)
-    self.step1_2_2_1_r1PreSelector.setToolTip("Select pre-irradiation R1 map")
-    self.step1_2_2_1_applyToR1Layout.addRow("R1 pre-irradiation:", self.step1_2_2_1_r1PreSelector)
+    self.step1_2_2_1_r1PreSelector.setToolTip("Select pre-irradiation R1 or R2 map")
+    self.step1_2_2_1_applyToR1Layout.addRow(" Pre-irradiation R1 or R2 map:", self.step1_2_2_1_r1PreSelector)
 
     # R1 post selector
     self.step1_2_2_1_r1PostSelector = slicer.qMRMLNodeComboBox()
@@ -765,12 +765,12 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     self.step1_2_2_1_r1PostSelector.noneEnabled = True
     self.step1_2_2_1_r1PostSelector.showHidden = False
     self.step1_2_2_1_r1PostSelector.setMRMLScene(slicer.mrmlScene)
-    self.step1_2_2_1_r1PostSelector.setToolTip("Select post-irradiation R1 map")
-    self.step1_2_2_1_applyToR1Layout.addRow("R1 post-irradiation:", self.step1_2_2_1_r1PostSelector)
+    self.step1_2_2_1_r1PostSelector.setToolTip("Select post-irradiation R1 or R2 map")
+    self.step1_2_2_1_applyToR1Layout.addRow("Post-irradiation R1 or R2 map:", self.step1_2_2_1_r1PostSelector)
 
     # Apply transform button
-    self.step1_2_2_1_applyTransformToR1Button = qt.QPushButton("Apply Transform to R1 Maps")
-    self.step1_2_2_1_applyTransformToR1Button.toolTip = "Resample R1 post using the GRE registration transform"
+    self.step1_2_2_1_applyTransformToR1Button = qt.QPushButton("Apply Transform to R1 or R2 Maps")
+    self.step1_2_2_1_applyTransformToR1Button.toolTip = "Resample R1 or R2 post-irradiation volumes using the registration transform derived from the mapping sequence image"
     self.step1_2_2_1_applyToR1Layout.addRow(self.step1_2_2_1_applyTransformToR1Button)
 
     # 1.2.2.1.3. Denoising for calibration
@@ -3454,7 +3454,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     r1PostNode = self.step1_2_1_1_r1PostSelector.currentNode()
 
     if not r1PreNode or not r1PostNode:
-      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre- and post-irradiation R1 maps.')
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre- and post-irradiation R1 or R2 maps.')
       return
 
     if not hasattr(self, 'transformNode') or self.transformNode is None:
@@ -3462,11 +3462,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       return
 
     if getattr(self, 'manualTransformTouched', False) and not getattr(self, 'mainResampleDone', False):
-      qt.QMessageBox.warning(None, 'Warning', 'You adjusted the manual transform - please click "Resample" first so it can be carried over to the R1 maps.')
+      qt.QMessageBox.warning(None, 'Warning', 'You adjusted the manual transform - please click "Resample" first so it can be carried over to the R1 or R2 maps.')
       return
 
     qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-    progressDialog = qt.QProgressDialog("Applying transform to R1 maps.", "OK", 0, 0)
+    progressDialog = qt.QProgressDialog("Applying transform to R1 or R2 maps.", "OK", 0, 0)
     progressDialog.setModal(True)
     progressDialog.setMinimumDuration(0)
     progressDialog.show()
@@ -3513,14 +3513,14 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
           }
           cliNode2 = slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters2, wait_for_completion=True)
           if not (cliNode2.GetStatus() & cliNode2.Completed):
-            qt.QMessageBox.critical(None, 'Error', 'Applying manual adjustment to R1 maps failed')
+            qt.QMessageBox.critical(None, 'Error', 'Applying manual adjustment to R1 or R2 maps failed')
             return
 
         self.registeredPostNode = outputNode
         self.showRegistrationResult(r1PreNode, outputNode)
         self.step1_2_1_1_denoisingInputSelector.setCurrentNode(r1PreNode)
       else:
-        qt.QMessageBox.critical(None, 'Error', 'Failed to apply transform to R1 maps')
+        qt.QMessageBox.critical(None, 'Error', 'Failed to apply transform to R1 or R2 maps')
     except Exception as e:
       progressDialog.close()
       qt.QApplication.restoreOverrideCursor()
@@ -3624,7 +3624,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     postScanNode = self.step1_2_1_postScanSelector.currentNode()
 
     if preScanNode is None:
-      qt.QMessageBox.warning(None, 'Warning', 'No pre-irradiation R1 map selected. Please select one in the R1 map section.')
+      qt.QMessageBox.warning(None, 'Warning', 'No pre-irradiation R1 or R2 maps selected. Please select one in the R1 or R2 maps section.')
       return
     
     if not preScanNode or not self.registeredPostNode:
@@ -3919,7 +3919,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     r1PostNode = self.step1_2_2_1_r1PostSelector.currentNode()
 
     if not r1PreNode or not r1PostNode:
-      qt.QMessageBox.warning(None, 'Warning', 'Please select both R1 pre- and post-irradiation maps')
+      qt.QMessageBox.warning(None, 'Warning', 'Please select both pre- and post-irradiation R1 or R2 maps')
       return
 
     if not hasattr(self, 'calibrationTransformNode') or self.calibrationTransformNode is None:
@@ -3927,11 +3927,11 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
       return
 
     if getattr(self, 'calibrationManualTransformTouched', False) and not getattr(self, 'calibrationMainResampleDone', False):
-      qt.QMessageBox.warning(None, 'Warning', 'You adjusted the manual transform - please click "Resample" first so it can be carried over to the R1 maps.')
+      qt.QMessageBox.warning(None, 'Warning', 'You adjusted the manual transform - please click "Resample" first so it can be carried over to the R1 or R2 maps.')
       return
 
     qt.QApplication.setOverrideCursor(qt.QCursor(qt.Qt.BusyCursor))
-    progressDialog = qt.QProgressDialog("Applying transform to R1 maps.", "OK", 0, 0)
+    progressDialog = qt.QProgressDialog("Applying transform to R1 or R2 maps.", "OK", 0, 0)
     progressDialog.setModal(True)
     progressDialog.setMinimumDuration(0)
     progressDialog.show()
@@ -3977,14 +3977,14 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
           }
           cliNode2 = slicer.cli.run(slicer.modules.brainsresample, None, resampleParameters2, wait_for_completion=True)
           if not (cliNode2.GetStatus() & cliNode2.Completed):
-            qt.QMessageBox.critical(None, 'Error', 'Applying manual adjustment to R1 maps failed')
+            qt.QMessageBox.critical(None, 'Error', 'Applying manual adjustment to R1 or R2 maps failed')
             return
 
         self.calibrationRegisteredPostNode = outputNode
         self.showRegistrationResult(r1PreNode, outputNode)
         self.step1_2_2_1_denoisingInputSelector.setCurrentNode(r1PreNode)
       else:
-        qt.QMessageBox.critical(None, 'Error', 'Failed to apply transform to R1 maps')
+        qt.QMessageBox.critical(None, 'Error', 'Failed to apply transform to R1 or R2 maps')
     except Exception as e:
       progressDialog.close()
       qt.QApplication.restoreOverrideCursor()
@@ -4071,7 +4071,7 @@ class GelDosimetryAnalysisSlicelet(VTKObservationMixin):
     postScanNode = self.step1_2_2_postScanSelector.currentNode()
 
     if preScanNode is None:
-      qt.QMessageBox.warning(None, 'Warning', 'No pre-irradiation R1 map selected. Please select one in the R1 map section.')
+      qt.QMessageBox.warning(None, 'Warning', 'No pre-irradiation R1 or R2 maps selected. Please select one in the R1 or R2 maps section.')
       return
     
     if not preScanNode or not self.calibrationRegisteredPostNode:
